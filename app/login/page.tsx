@@ -3,10 +3,23 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Icon from "../components/Icon";
 
 type Mode = "login" | "register";
+
+// Only allow same-origin paths — callbackUrl comes from the query string,
+// so anything else is an open-redirect vector.
+function safeCallbackPath(raw: string | null): string {
+  if (!raw) return "/home";
+  try {
+    const url = new URL(raw, window.location.origin);
+    if (url.origin !== window.location.origin) return "/home";
+    return url.pathname + url.search;
+  } catch {
+    return "/home";
+  }
+}
 
 export default function LoginPage() {
   return (
@@ -17,9 +30,8 @@ export default function LoginPage() {
 }
 
 function LoginPageInner() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/home";
+  const callbackUrl = searchParams.get("callbackUrl");
 
   const [mode, setMode] = useState<Mode>(
     searchParams.get("mode") === "register" ? "register" : "login"
@@ -68,13 +80,14 @@ function LoginPageInner() {
       if (isRegister) {
         setToast("Account created successfully!");
         await new Promise((r) => setTimeout(r, 1200));
-        router.push("/signup/intent");
-        router.refresh();
+        window.location.assign("/signup/intent");
         return;
       }
 
-      router.push(callbackUrl);
-      router.refresh();
+      // Full-page navigation: a client-side router.push here can reuse the
+      // pre-login prefetch of the target route (a 307 back to /login), which
+      // bounces the user to the login form even though the session is valid.
+      window.location.assign(safeCallbackPath(callbackUrl));
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
