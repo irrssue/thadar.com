@@ -8,7 +8,7 @@ import Icon from "../../../../components/Icon";
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
-type Lesson = { id: string; title: string; content: string; order: number; published: boolean };
+type Lesson = { id: string; title: string; content: string; videoUrl: string; order: number; published: boolean };
 type ListLesson = { id: string; title: string; order: number; viewed: boolean };
 
 export default function LessonReaderPage({ params }: { params: Promise<{ id: string; lessonId: string }> }) {
@@ -48,6 +48,21 @@ export default function LessonReaderPage({ params }: { params: Promise<{ id: str
         {lesson && (
           <>
             <h1 style={{ fontWeight: 600, fontSize: 40, margin: "14px 0 20px", letterSpacing: "-0.5px", lineHeight: 1.15 }}>{lesson.title}</h1>
+            {lesson.videoUrl.trim() && (
+              <a
+                href={lesson.videoUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 10,
+                  background: "var(--accent)", color: "#fff", textDecoration: "none",
+                  padding: "12px 20px", borderRadius: 10, fontSize: 16, fontWeight: 600,
+                  marginBottom: 24,
+                }}
+              >
+                ▶ Watch lesson video
+              </a>
+            )}
             {lesson.content.trim() ? (
               <div style={{ fontSize: 17, lineHeight: 1.7, color: "var(--ink)", whiteSpace: "pre-wrap" }}>{lesson.content}</div>
             ) : (

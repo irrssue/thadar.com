@@ -176,7 +176,7 @@ function RosterTab({ classId, onChange }: { classId: string; onChange: () => voi
 
 /* ---------------- Lessons ---------------- */
 
-type Lesson = { id: string; title: string; content: string; order: number; published: boolean; _count: { views: number } };
+type Lesson = { id: string; title: string; content: string; videoUrl: string; order: number; published: boolean; _count: { views: number } };
 
 function LessonsTab({ classId }: { classId: string }) {
   const [lessons, setLessons] = useState<Lesson[] | null>(null);
@@ -246,7 +246,7 @@ function LessonsTab({ classId }: { classId: string }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 17 }}>{l.title}</div>
             <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
-              {l.published ? `published · ${l._count.views} views` : "draft"}
+              {l.published ? `published · ${l._count.views} views` : "draft"}{l.videoUrl ? " · 🎬 video" : ""}
             </div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
@@ -270,6 +270,7 @@ function LessonsTab({ classId }: { classId: string }) {
 function LessonModal({ classId, lesson, onClose, onSaved }: { classId: string; lesson?: Lesson; onClose: () => void; onSaved: () => void }) {
   const [title, setTitle] = useState(lesson?.title ?? "");
   const [content, setContent] = useState(lesson?.content ?? "");
+  const [videoUrl, setVideoUrl] = useState(lesson?.videoUrl ?? "");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -283,7 +284,7 @@ function LessonModal({ classId, lesson, onClose, onSaved }: { classId: string; l
       const res = await fetch(url, {
         method: lesson ? "PATCH" : "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), content }),
+        body: JSON.stringify({ title: title.trim(), content, videoUrl: videoUrl.trim() }),
       });
       const json: ApiResponse<unknown> = await res.json();
       if (!json.success) { setErr(json.error); return; }
@@ -298,6 +299,10 @@ function LessonModal({ classId, lesson, onClose, onSaved }: { classId: string; l
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ ...modalStyle, width: "min(640px, 94vw)" }}>
         <div style={{ fontSize: 20, fontWeight: 700 }}>{lesson ? "Edit lesson" : "New lesson"}</div>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Lesson title" required maxLength={200} autoFocus style={inputStyle} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <input value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="Video link (e.g. unlisted YouTube URL)" type="url" maxLength={2000} style={inputStyle} />
+          <span style={{ fontSize: 12, color: "var(--ink-dim)" }}>Paste an unlisted YouTube link. Students open it to watch the lesson video.</span>
+        </div>
         <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Lesson content (markdown supported)…" rows={10} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-mono)", fontSize: 14 }} />
         {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>

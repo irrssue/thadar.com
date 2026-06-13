@@ -28,6 +28,7 @@ export async function GET(
         id: true,
         title: true,
         content: true,
+        videoUrl: true,
         order: true,
         views: {
           where: { userId: gate.userId },
@@ -40,6 +41,7 @@ export async function GET(
         id: l.id,
         title: l.title,
         content: l.content,
+        videoUrl: l.videoUrl,
         order: l.order,
         viewed: l.views.length > 0,
       })),
@@ -53,6 +55,7 @@ export async function GET(
       id: true,
       title: true,
       content: true,
+      videoUrl: true,
       order: true,
       published: true,
       _count: { select: { views: true } },
@@ -61,9 +64,18 @@ export async function GET(
   return ok(lessons);
 }
 
+// Allow an empty string (no video) or a valid http(s) URL — typically an
+// unlisted YouTube link that students open to watch the lesson video.
+const videoUrlSchema = z
+  .string()
+  .trim()
+  .max(2000)
+  .refine((v) => v === "" || /^https?:\/\/.+/i.test(v), "Invalid video URL");
+
 const createSchema = z.object({
   title: z.string().trim().min(1).max(200),
   content: z.string().max(50000).optional(),
+  videoUrl: videoUrlSchema.optional(),
   published: z.boolean().default(false),
 });
 
@@ -94,10 +106,11 @@ export async function POST(
       classId: id,
       title: parsed.data.title,
       content: parsed.data.content ?? "",
+      videoUrl: parsed.data.videoUrl ?? "",
       published: parsed.data.published,
       order: (last?.order ?? -1) + 1,
     },
-    select: { id: true, title: true, content: true, order: true, published: true },
+    select: { id: true, title: true, content: true, videoUrl: true, order: true, published: true },
   });
 
   return ok(created, 201);

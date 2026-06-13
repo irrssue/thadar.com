@@ -123,6 +123,7 @@ model Lesson {
   classId   String
   title     String
   content   String   @default("")
+  videoUrl  String   @default("")
   order     Int      @default(0)
   published Boolean  @default(false)
   createdAt DateTime @default(now())

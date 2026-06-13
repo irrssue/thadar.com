@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 async function loadLesson(lessonId: string) {
   return prisma.lesson.findUnique({
     where: { id: lessonId },
-    select: { id: true, classId: true, title: true, content: true, order: true, published: true },
+    select: { id: true, classId: true, title: true, content: true, videoUrl: true, order: true, published: true },
   });
 }
 
@@ -36,6 +36,12 @@ export async function GET(
 const patchSchema = z.object({
   title: z.string().trim().min(1).max(200).optional(),
   content: z.string().max(50000).optional(),
+  videoUrl: z
+    .string()
+    .trim()
+    .max(2000)
+    .refine((v) => v === "" || /^https?:\/\/.+/i.test(v), "Invalid video URL")
+    .optional(),
   published: z.boolean().optional(),
   order: z.number().int().min(0).optional(),
 });
@@ -63,10 +69,11 @@ export async function PATCH(
     data: {
       ...(parsed.data.title !== undefined ? { title: parsed.data.title } : {}),
       ...(parsed.data.content !== undefined ? { content: parsed.data.content } : {}),
+      ...(parsed.data.videoUrl !== undefined ? { videoUrl: parsed.data.videoUrl } : {}),
       ...(parsed.data.published !== undefined ? { published: parsed.data.published } : {}),
       ...(parsed.data.order !== undefined ? { order: parsed.data.order } : {}),
     },
-    select: { id: true, title: true, content: true, order: true, published: true },
+    select: { id: true, title: true, content: true, videoUrl: true, order: true, published: true },
   });
   return ok(updated);
 }
