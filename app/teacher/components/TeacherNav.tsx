@@ -75,7 +75,7 @@ export default function TeacherNav() {
         className="nav-burger"
         style={{
           position: "fixed",
-          top: 14,
+          top: 18,
           left: 14,
           width: 42,
           height: 42,
