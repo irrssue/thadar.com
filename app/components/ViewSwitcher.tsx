@@ -48,43 +48,29 @@ export default function ViewSwitcher({ current }: { current: "TEACHER" | "STUDEN
       title={label}
       disabled={working}
       style={{
-        width: 42,
+        pointerEvents: "auto",
+        width: "100%",
         height: 42,
-        borderRadius: 999,
+        display: "flex",
+        alignItems: "center",
+        gap: 14,
+        padding: "0 12px",
+        borderRadius: 10,
         border: "none",
         background: "transparent",
         color: "var(--ink-dim)",
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
         cursor: working ? "default" : "pointer",
         opacity: working ? 0.5 : 1,
-        position: "relative",
+        fontFamily: "var(--font-sans)",
+        fontSize: 14,
         transition: "background 120ms, color 120ms",
       }}
       className="nav-btn"
     >
-      <Icon name={target === "TEACHER" ? "book" : "students"} />
-      <span
-        className="nav-tip"
-        style={{
-          position: "absolute",
-          bottom: 56,
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "var(--nav-bg)",
-          border: "1px solid var(--nav-border)",
-          color: "var(--ink)",
-          fontFamily: "var(--font-mono)",
-          fontSize: 11,
-          padding: "4px 8px",
-          borderRadius: 6,
-          whiteSpace: "nowrap",
-          pointerEvents: "none",
-          opacity: 0,
-          transition: "opacity 120ms",
-        }}
-      >
+      <span style={{ display: "inline-flex", flexShrink: 0 }}>
+        <Icon name={target === "TEACHER" ? "book" : "students"} />
+      </span>
+      <span className="side-label" style={{ whiteSpace: "nowrap", overflow: "hidden" }}>
         {label}
       </span>
     </button>
