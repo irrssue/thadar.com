@@ -91,7 +91,7 @@ export default function TeacherNav() {
           transition: "background 120ms",
         }}
       >
-        <Icon name="menu" />
+        <Icon name="menu" size={28} />
       </button>
 
       {open && (
