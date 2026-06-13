@@ -16,7 +16,7 @@ type ClassDetail = {
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
-type Tab = "roster" | "lessons" | "assignments" | "settings";
+type Tab = "roster" | "lessons" | "assignments" | "progress" | "settings";
 
 export default function ClassDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -53,6 +53,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
     { id: "roster", label: "Roster" },
     { id: "lessons", label: "Lessons" },
     { id: "assignments", label: "Assignments" },
+    { id: "progress", label: "Progress" },
     { id: "settings", label: "Settings" },
   ];
 
@@ -87,6 +88,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       {tab === "roster" && <RosterTab classId={id} onChange={load} />}
       {tab === "lessons" && <LessonsTab classId={id} />}
       {tab === "assignments" && <AssignmentsTab classId={id} />}
+      {tab === "progress" && <ProgressTab classId={id} />}
       {tab === "settings" && <SettingsTab klass={klass} onChange={load} />}
 
       <CommandBar />
@@ -203,6 +205,31 @@ function LessonsTab({ classId }: { classId: string }) {
     load();
   }
 
+  // Swap a lesson's order value with its neighbour to move it up/down.
+  async function move(l: Lesson, dir: -1 | 1) {
+    if (!lessons) return;
+    const sorted = [...lessons].sort((a, b) => a.order - b.order);
+    const i = sorted.findIndex((x) => x.id === l.id);
+    const j = i + dir;
+    if (j < 0 || j >= sorted.length) return;
+    const neighbour = sorted[j];
+    await Promise.all([
+      fetch(`/api/lessons/${l.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ order: neighbour.order }),
+      }),
+      fetch(`/api/lessons/${neighbour.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ order: l.order }),
+      }),
+    ]);
+    load();
+  }
+
+  const sorted = [...(lessons ?? [])].sort((a, b) => a.order - b.order);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -210,8 +237,12 @@ function LessonsTab({ classId }: { classId: string }) {
       </div>
       {!lessons && <Muted>Loading lessons…</Muted>}
       {lessons && lessons.length === 0 && <Muted>No lessons yet. Create your first lesson.</Muted>}
-      {(lessons ?? []).map((l) => (
+      {sorted.map((l, i) => (
         <RowCard key={l.id}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <button onClick={() => move(l, -1)} disabled={i === 0} title="Move up" style={{ ...reorderBtn, opacity: i === 0 ? 0.3 : 1 }}>▲</button>
+            <button onClick={() => move(l, 1)} disabled={i === sorted.length - 1} title="Move down" style={{ ...reorderBtn, opacity: i === sorted.length - 1 ? 0.3 : 1 }}>▼</button>
+          </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 17 }}>{l.title}</div>
             <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
@@ -458,6 +489,71 @@ function GradeCard({ sub, onGrade }: { sub: SubRow; onGrade: (s: SubRow, g: stri
   );
 }
 
+/* ---------------- Progress / gradebook ---------------- */
+
+type GradebookSub = { assignmentId: string; status: string; grade: string | null };
+type GradebookRow = { id: string; name: string | null; email: string; lessonsViewed: number; submissions: GradebookSub[] };
+type Gradebook = { totalLessons: number; assignments: { id: string; title: string }[]; students: GradebookRow[] };
+
+function ProgressTab({ classId }: { classId: string }) {
+  const [data, setData] = useState<Gradebook | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch(`/api/classes/${classId}/progress`, { cache: "no-store" });
+      const json: ApiResponse<Gradebook> = await res.json();
+      if (json.success) setData(json.data);
+    })();
+  }, [classId]);
+
+  if (!data) return <Muted>Loading progress…</Muted>;
+  if (data.students.length === 0) return <Muted>No students yet.</Muted>;
+
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+        <thead>
+          <tr style={{ textAlign: "left", color: "var(--ink-dim)" }}>
+            <th style={thCell}>Student</th>
+            <th style={thCell}>Lessons</th>
+            {data.assignments.map((a) => (
+              <th key={a.id} style={thCell} title={a.title}>
+                <span style={{ display: "inline-block", maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", verticalAlign: "bottom" }}>{a.title}</span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {data.students.map((s) => (
+            <tr key={s.id} style={{ borderTop: "1px dashed var(--ink-faint)" }}>
+              <td style={tdCell}>
+                <div style={{ fontSize: 14 }}>{s.name ?? s.email}</div>
+                <div style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--font-mono)" }}>{s.email}</div>
+              </td>
+              <td style={tdCell}>
+                <span style={{ fontFamily: "var(--font-mono)" }}>{s.lessonsViewed}/{data.totalLessons}</span>
+              </td>
+              {s.submissions.map((sub) => (
+                <td key={sub.assignmentId} style={tdCell}>
+                  <GradeCell sub={sub} />
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function GradeCell({ sub }: { sub: GradebookSub }) {
+  if (sub.status === "NONE") return <span style={{ color: "var(--ink-faint)" }}>—</span>;
+  if (sub.status === "GRADED" || sub.status === "RETURNED") {
+    return <span style={{ color: "var(--accent)", fontWeight: 600 }}>{sub.grade ?? "graded"}</span>;
+  }
+  return <span style={{ color: "var(--ink-dim)", fontFamily: "var(--font-mono)", fontSize: 12 }}>submitted</span>;
+}
+
 /* ---------------- Settings (invite code + edit/delete) ---------------- */
 
 function SettingsTab({ klass, onChange }: { klass: ClassDetail; onChange: () => void }) {
@@ -587,3 +683,6 @@ const ghostSmall: React.CSSProperties = { padding: "6px 12px", borderRadius: 999
 const primaryBtn: React.CSSProperties = { padding: "8px 16px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 14, cursor: "pointer" };
 const approveBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 13, cursor: "pointer" };
 const denyBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, border: "1.2px solid var(--danger)", background: "transparent", color: "var(--danger)", fontSize: 13, cursor: "pointer" };
+const reorderBtn: React.CSSProperties = { width: 22, height: 18, lineHeight: "14px", fontSize: 10, borderRadius: 5, border: "1.1px solid var(--ink-faint)", background: "transparent", color: "var(--ink-dim)", cursor: "pointer", padding: 0 };
+const thCell: React.CSSProperties = { padding: "8px 12px", fontWeight: 600, fontSize: 12, textTransform: "uppercase", letterSpacing: 0.5, whiteSpace: "nowrap" };
+const tdCell: React.CSSProperties = { padding: "10px 12px", verticalAlign: "top", whiteSpace: "nowrap" };
