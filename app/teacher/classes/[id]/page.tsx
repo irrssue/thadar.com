@@ -503,7 +503,19 @@ function SettingsTab({ klass, onChange }: { klass: ClassDetail; onChange: () => 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       <div style={{ border: "1.5px dashed var(--stroke)", borderRadius: 14, background: "var(--surface)", padding: "22px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
-        <div style={{ fontSize: 20, fontWeight: 700 }}>Invite code</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>Invite code</div>
+          {code.inviteCode && (
+            <button
+              onClick={copyCode}
+              title="Copy invite code"
+              aria-label="Copy invite code"
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, border: "1.2px solid var(--stroke)", background: "var(--bg)", color: "var(--ink)", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+            >
+              {copied ? "Copied!" : "Copy"}
+            </button>
+          )}
+        </div>
         {code.inviteCode ? (
           <>
             <div style={{ fontFamily: "var(--font-mono)", fontSize: 36, fontWeight: 700, letterSpacing: 4, padding: "16px 20px", borderRadius: 10, background: "var(--bg)", border: "1.4px solid var(--stroke)", textAlign: "center" }}>
