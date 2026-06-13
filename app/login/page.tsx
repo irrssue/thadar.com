@@ -201,47 +201,6 @@ function LoginPageInner() {
               : "Sign in to continue your learning."}
           </p>
 
-          <button
-            type="button"
-            style={{
-              width: "100%",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 10,
-              padding: "11px 14px",
-              borderRadius: 10,
-              border: "1px solid var(--stroke)",
-              background: "var(--surface-2)",
-              color: "var(--ink)",
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: "pointer",
-              transition: "background 140ms",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--surface-hover)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "var(--surface-2)")}
-          >
-            <Icon name="google" size={18} />
-            Continue with Google
-          </button>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              margin: "20px 0 18px",
-              color: "var(--ink-faint)",
-              fontSize: 12,
-              letterSpacing: "0.5px",
-            }}
-          >
-            <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
-            OR
-            <span style={{ flex: 1, height: 1, background: "var(--hairline)" }} />
-          </div>
-
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {isRegister && (
               <Field
