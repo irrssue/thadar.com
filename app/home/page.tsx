@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import FloatingNav from "../components/FloatingNav";
-import AskCard from "../components/AskCard";
-import CommandBar from "../components/CommandBar";
+import StudentShell from "../components/student/StudentShell";
+import StudentIcon from "../components/student/StudentIcon";
+import { subjectColor, initials } from "../components/student/subject";
+import { dueInfo, todayLine } from "../components/student/dates";
 
 type Submission = {
   id: string;
@@ -23,291 +25,236 @@ type FeedItem = {
   submission: Submission | null;
 };
 
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+type Membership = {
+  id: string;
+  status: "ACTIVE" | "PENDING";
+  class: {
+    id: string;
+    name: string;
+    owner: { name: string | null };
+    _count: { lessons: number };
+  };
+};
+
+type Person = { id: string; name: string | null; email: string };
+type Mail = {
+  id: string;
+  subject: string;
+  body: string;
+  readAt: string | null;
+  createdAt: string;
+  sender: Person;
+};
+
+type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState("home");
   const { data: session } = useSession();
+  const router = useRouter();
   const [feed, setFeed] = useState<FeedItem[] | null>(null);
-  const [active, setActive] = useState<FeedItem | null>(null);
+  const [classes, setClasses] = useState<Membership[] | null>(null);
+  const [mail, setMail] = useState<{ messages: Mail[]; unread: number } | null>(null);
 
   const firstName = session?.user?.name?.split(" ")[0] ?? "there";
 
-  async function load() {
-    const res = await fetch("/api/assignments", { cache: "no-store" });
-    const json: ApiResponse<FeedItem[]> = await res.json();
-    if (json.success) setFeed(json.data);
-  }
-
   useEffect(() => {
-    load();
+    (async () => {
+      const [a, m, x] = await Promise.all([
+        fetch("/api/assignments", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/memberships", { cache: "no-store" }).then((r) => r.json()),
+        fetch("/api/messages?box=inbox", { cache: "no-store" }).then((r) => r.json()),
+      ]);
+      if ((a as ApiResponse<FeedItem[]>).success) setFeed(a.data);
+      if ((m as ApiResponse<Membership[]>).success) setClasses(m.data);
+      if ((x as ApiResponse<{ messages: Mail[]; unread: number }>).success)
+        setMail({ messages: x.data.messages, unread: x.data.unread });
+    })();
   }, []);
 
   const due = (feed ?? []).filter((f) => !f.submission);
-  const subtitle =
-    feed === null
-      ? "Loading your work…"
-      : due.length === 0
-        ? "Nothing due right now — you're all caught up."
-        : `${due.length} ${due.length === 1 ? "assignment" : "assignments"} waiting for you.`;
+  const dueToday = due.filter((f) => dueInfo(f.dueAt).state === "today").length;
+  const graded = (feed ?? []).filter(
+    (f) => f.submission && f.submission.status !== "SUBMITTED" && f.submission.grade,
+  );
+  const activeClasses = (classes ?? []).filter((c) => c.status === "ACTIVE");
+  const latest = mail?.messages[0] ?? null;
+  const unread = mail?.unread ?? 0;
 
   return (
-    <>
-      <div className="app-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
-        <h1 style={{ fontWeight: 600, fontSize: 48, margin: "0 0 4px", letterSpacing: "-0.5px" }}>
-          Welcome,{" "}
-          <Link href="/profile" style={{ color: "var(--accent)", textDecoration: "none" }}>
+    <StudentShell active="home">
+      <div className="hero">
+        <h1 className="greet">
+          Welcome back,{" "}
+          <Link href="/profile" className="var">
             {firstName}
           </Link>
         </h1>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 28px" }}>
-          <p style={{ color: "var(--ink-dim)", fontSize: 16, margin: 0 }}>{subtitle}</p>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1.6fr", gap: 28 }} className="main-grid">
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {feed === null && (
-              <Panel muted>Loading…</Panel>
-            )}
-            {feed !== null && feed.length === 0 && (
-              <Panel muted>No assignments yet. Join a class to get started.</Panel>
-            )}
-            {(feed ?? []).map((f) => (
-              <button
-                key={f.id}
-                onClick={() => setActive(f)}
-                style={{
-                  textAlign: "left",
-                  border: "1px solid var(--ink-faint)",
-                  borderRadius: 14,
-                  background: "var(--surface)",
-                  padding: "14px 16px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 4,
-                  cursor: "pointer",
-                  color: "inherit",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 500 }}>{f.title}</span>
-                  <StatusPill submission={f.submission} />
-                </div>
-                <span style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
-                  {f.class.name}
-                  {f.dueAt ? ` · due ${new Date(f.dueAt).toLocaleDateString()}` : ""}
-                </span>
-              </button>
-            ))}
-          </div>
-          <AskCard />
-        </div>
-
-        <CommandBar />
+        <p className="subline">
+          <span>{todayLine()}</span>
+          {due.length > 0 && (
+            <>
+              <span className="sep">·</span>
+              <b>{dueToday > 0 ? dueToday : due.length}</b>{" "}
+              {dueToday > 0 ? "due today" : "open"}
+            </>
+          )}
+          {unread > 0 && (
+            <>
+              <span className="sep">·</span>
+              <span className="hot">{unread} unread</span>
+            </>
+          )}
+        </p>
       </div>
 
-      {active && (
-        <AssignmentModal
-          item={active}
-          onClose={() => setActive(null)}
-          onSubmitted={() => {
-            setActive(null);
-            load();
-          }}
-        />
+      {/* most-recent message strip */}
+      {latest && (
+        <Link href="/inbox" className="recent-mail">
+          <span
+            className="av-sm"
+            style={{
+              background: `color-mix(in srgb, ${subjectColor(latest.sender.id)} 22%, transparent)`,
+              color: subjectColor(latest.sender.id),
+            }}
+          >
+            {initials(latest.sender.name ?? latest.sender.email)}
+          </span>
+          <div className="rm-body">
+            <div className="rm-from">
+              {!latest.readAt && <span className="udot" />}
+              {latest.sender.name ?? latest.sender.email}
+              <span className="rm-tag">· latest message</span>
+            </div>
+            <div className="rm-prev">
+              {latest.subject} — {latest.body}
+            </div>
+          </div>
+          <span className="rm-when">{new Date(latest.createdAt).toLocaleDateString()}</span>
+          <span className="rm-open">
+            Inbox <StudentIcon name="arrow" size={13} />
+          </span>
+        </Link>
       )}
 
-      <FloatingNav active={activeTab} onChange={setActiveTab} />
-
-      <style>{`
-        @media (max-width: 880px) { .main-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
-    </>
-  );
-}
-
-function Panel({ children, muted }: { children: React.ReactNode; muted?: boolean }) {
-  return (
-    <div
-      style={{
-        border: "1px solid var(--ink-faint)",
-        borderRadius: 14,
-        background: "var(--surface)",
-        padding: "18px 20px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        color: muted ? "var(--ink-dim)" : "var(--ink)",
-        fontSize: 14,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
-function StatusPill({ submission }: { submission: Submission | null }) {
-  let label = "to do";
-  let color = "var(--ink-dim)";
-  if (submission?.status === "GRADED") {
-    label = submission.grade ? `graded · ${submission.grade}` : "graded";
-    color = "var(--accent-2, var(--accent))";
-  } else if (submission) {
-    label = "submitted";
-    color = "var(--accent)";
-  }
-  return (
-    <span style={{
-      fontFamily: "var(--font-mono)",
-      fontSize: 10,
-      color,
-      border: "1px solid var(--ink-faint)",
-      borderRadius: 999,
-      padding: "2px 8px",
-      textTransform: "uppercase",
-      letterSpacing: 1,
-      whiteSpace: "nowrap",
-    }}>
-      {label}
-    </span>
-  );
-}
-
-function AssignmentModal({
-  item,
-  onClose,
-  onSubmitted,
-}: {
-  item: FeedItem;
-  onClose: () => void;
-  onSubmitted: () => void;
-}) {
-  const [content, setContent] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const alreadyGraded = item.submission?.status === "GRADED";
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!content.trim() || submitting) return;
-    setSubmitting(true);
-    setErr(null);
-    try {
-      const res = await fetch(`/api/assignments/${item.id}/submit`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ content: content.trim() }),
-      });
-      const json: ApiResponse<unknown> = await res.json();
-      if (!json.success) {
-        setErr(json.error);
-        return;
-      }
-      onSubmitted();
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div onClick={onClose} style={overlayStyle}>
-      <div onClick={(e) => e.stopPropagation()} style={{ ...modalStyle, width: "min(560px, 94vw)" }}>
-        <div style={{ fontSize: 22, fontWeight: 600 }}>{item.title}</div>
-        <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
-          {item.class.name}
-          {item.dueAt ? ` · due ${new Date(item.dueAt).toLocaleString()}` : ""}
-        </div>
-        {item.instructions && (
-          <div style={{ fontSize: 14, color: "var(--ink-dim)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
-            {item.instructions}
+      <div className="bento-min">
+        {/* ---- Due soon ---- */}
+        <button className="tile link area-due" onClick={() => router.push("/assignments")}>
+          <div className="tile-hd">
+            <div>
+              <div className="tile-eyebrow">
+                {due.length} open{dueToday > 0 ? ` · ${dueToday} due today` : ""}
+              </div>
+              <div className="tile-title">Due soon</div>
+            </div>
+            <span className="tile-open">
+              open <StudentIcon name="arrow" size={13} />
+            </span>
           </div>
-        )}
-
-        {item.submission && (
-          <div style={{
-            border: "1px solid var(--ink-faint)",
-            borderRadius: 10,
-            padding: "10px 12px",
-            fontSize: 13,
-            color: "var(--ink-dim)",
-          }}>
-            {alreadyGraded
-              ? `Graded${item.submission.grade ? `: ${item.submission.grade}` : ""}. You can resubmit to try again.`
-              : "Submitted. You can resubmit to replace your answer."}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {feed === null && <div className="empty">Loading…</div>}
+            {feed !== null && due.length === 0 && (
+              <div className="empty">You&apos;re all caught up. Nothing due.</div>
+            )}
+            {due.slice(0, 4).map((t) => {
+              const d = dueInfo(t.dueAt);
+              return (
+                <div key={t.id} className="task" style={{ cursor: "default" }}>
+                  <div className="cbox" />
+                  <div className="body">
+                    <div className="ti">{t.title}</div>
+                    <div className="mt">
+                      <span className="sdot" style={{ background: subjectColor(t.class.id), width: 7, height: 7 }} />
+                      {t.class.name}
+                    </div>
+                  </div>
+                  <span className={"due-chip " + (d.state === "today" ? "today" : d.state === "over" ? "over" : "")}>
+                    {d.label}
+                  </span>
+                </div>
+              );
+            })}
           </div>
-        )}
+          {due.length > 4 && (
+            <div className="tile-foot">
+              <span>+{due.length - 4} more</span>
+              <span className="go">
+                All assignments <StudentIcon name="arrow" size={12} />
+              </span>
+            </div>
+          )}
+        </button>
 
-        <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={6}
-            placeholder="Type your answer…"
-            autoFocus
-            style={{
-              padding: "12px 14px",
-              borderRadius: 10,
-              border: "1.4px solid var(--stroke)",
-              background: "var(--bg)",
-              color: "var(--ink)",
-              fontSize: 15,
-              fontFamily: "inherit",
-              resize: "vertical",
-              outline: "none",
-            }}
-          />
-          {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button type="button" onClick={onClose} style={ghostBtn}>Close</button>
-            <button type="submit" disabled={submitting || !content.trim()} style={{ ...primaryBtn, opacity: submitting || !content.trim() ? 0.5 : 1 }}>
-              {submitting ? "Submitting…" : item.submission ? "Resubmit" : "Submit"}
-            </button>
+        {/* ---- Classes ---- */}
+        <button className="tile link area-class" onClick={() => router.push("/classes")}>
+          <div className="tile-hd">
+            <div>
+              <div className="tile-eyebrow">Enrolled</div>
+              <div className="tile-title">Classes</div>
+            </div>
+            <span className="tile-count">{activeClasses.length} active</span>
           </div>
-        </form>
+          <div className="cgrid">
+            {classes === null && <div className="empty">Loading…</div>}
+            {classes !== null && activeClasses.length === 0 && (
+              <div className="empty">No classes yet — join one from the Classes page.</div>
+            )}
+            {activeClasses.slice(0, 4).map((c) => {
+              const color = subjectColor(c.class.id);
+              return (
+                <div key={c.id} className="cmini" style={{ ["--c" as string]: color }}>
+                  <div className="cn">{c.class.name}</div>
+                  <div className="tch">{c.class.owner.name ?? "Teacher"}</div>
+                  <div className="cfoot">
+                    <span className="grade" style={{ color }}>
+                      {c.class._count.lessons} lessons
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="tile-foot">
+            <span>{activeClasses.length} active</span>
+            <span className="go">
+              Open classes <StudentIcon name="arrow" size={12} />
+            </span>
+          </div>
+        </button>
+
+        {/* ---- Grades ---- */}
+        <button className="tile link area-grade" onClick={() => router.push("/grades")}>
+          <div className="tile-hd">
+            <div>
+              <div className="tile-eyebrow">Recently graded</div>
+              <div className="tile-title">Grades</div>
+            </div>
+            <span className="tile-open">
+              open <StudentIcon name="arrow" size={13} />
+            </span>
+          </div>
+          <div className="glist">
+            {feed === null && <div className="empty">Loading…</div>}
+            {feed !== null && graded.length === 0 && (
+              <div className="empty">No grades yet.</div>
+            )}
+            {graded.slice(0, 3).map((g) => (
+              <div key={g.id} className="grow">
+                <span className="sdot" style={{ background: subjectColor(g.class.id) }} />
+                <span className="gn">{g.title}</span>
+                <span className="gl">{g.submission!.grade}</span>
+              </div>
+            ))}
+          </div>
+          {graded.length > 0 && (
+            <div className="tile-foot">
+              <span>{graded.length} graded</span>
+              <span className="go">
+                Grade report <StudentIcon name="arrow" size={12} />
+              </span>
+            </div>
+          )}
+        </button>
       </div>
-    </div>
+    </StudentShell>
   );
 }
-
-const overlayStyle: React.CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(0,0,0,0.55)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 100,
-};
-
-const modalStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1.5px solid var(--stroke)",
-  borderRadius: 14,
-  padding: 24,
-  display: "flex",
-  flexDirection: "column",
-  gap: 14,
-};
-
-const ghostBtn: React.CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: 999,
-  border: "1.4px solid var(--stroke)",
-  background: "transparent",
-  color: "var(--ink)",
-  fontSize: 14,
-  cursor: "pointer",
-};
-
-const primaryBtn: React.CSSProperties = {
-  padding: "8px 16px",
-  borderRadius: 999,
-  border: "1.4px solid var(--accent)",
-  background: "var(--accent-soft)",
-  color: "var(--accent)",
-  fontSize: 14,
-  cursor: "pointer",
-};

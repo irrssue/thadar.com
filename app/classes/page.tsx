@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import FloatingNav from "../components/FloatingNav";
-import CommandBar from "../components/CommandBar";
-import Icon from "../components/Icon";
+import { useRouter } from "next/navigation";
+import StudentShell from "../components/student/StudentShell";
+import StudentIcon from "../components/student/StudentIcon";
+import { subjectColor } from "../components/student/subject";
 
 type Membership = {
   id: string;
@@ -19,14 +19,12 @@ type Membership = {
   };
 };
 
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
 const FILTERS = ["All", "Active", "Pending"] as const;
 
 export default function ClassesPage() {
-  const [activeTab, setActiveTab] = useState("classes");
+  const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [memberships, setMemberships] = useState<Membership[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -54,137 +52,92 @@ export default function ClassesPage() {
   });
 
   return (
-    <>
-      <div className="app-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-          <h1 style={{ fontWeight: 600, fontSize: 48, margin: "0 0 4px", letterSpacing: "-0.5px" }}>
-            Your <span style={{ color: "var(--accent)" }}>classes</span>
+    <StudentShell active="classes">
+      <div className="dh">
+        <div>
+          <h1>
+            Your <span className="var">classes</span>
           </h1>
-          <button
-            onClick={() => setShowJoin(true)}
-            style={joinBtnStyle}
-          >
-            <Icon name="plus" size={16} /> Join a class
+          <p className="dsub">
+            {memberships === null
+              ? "Loading…"
+              : memberships.length === 0
+                ? "No classes yet — join one with a code from your teacher."
+                : `${memberships.length} ${memberships.length === 1 ? "class" : "classes"} · spring term`}
+          </p>
+        </div>
+        <button className="btn" onClick={() => setShowJoin(true)}>
+          <StudentIcon name="plus" size={15} /> Join a class
+        </button>
+      </div>
+
+      <div className="filterbar">
+        {FILTERS.map((f) => (
+          <button key={f} className={"fpill " + (f === filter ? "on" : "")} onClick={() => setFilter(f)}>
+            {f}
           </button>
+        ))}
+      </div>
+
+      {error && <div style={{ color: "var(--danger)", marginBottom: 16 }}>{error}</div>}
+
+      {memberships !== null && filtered.length === 0 && (
+        <div className="card" style={{ textAlign: "center", color: "var(--ink-dim)", padding: "48px 24px" }}>
+          {memberships.length === 0
+            ? "You haven't joined any classes yet. Tap “Join a class” and enter the code your teacher gave you."
+            : "Nothing in this filter."}
         </div>
+      )}
 
-        <p style={{ color: "var(--ink-dim)", fontSize: 16, margin: "0 0 28px", fontWeight: 400 }}>
-          {memberships === null
-            ? "Loading…"
-            : memberships.length === 0
-              ? "No classes yet — join one with a code from your teacher."
-              : `${memberships.length} ${memberships.length === 1 ? "class" : "classes"}`}
-        </p>
-
-        <div style={{ display: "flex", gap: 8, marginBottom: 22, flexWrap: "wrap" }}>
-          {FILTERS.map((f) => {
-            const active = f === filter;
+      {filtered.length > 0 && (
+        <div className="dgrid d-2">
+          {filtered.map((m) => {
+            const color = subjectColor(m.class.id);
+            const active = m.status === "ACTIVE";
             return (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                style={{
-                  border: "1.2px solid var(--ink-faint)",
-                  borderRadius: 999,
-                  padding: "4px 10px",
-                  color: active ? "var(--accent)" : "var(--ink-dim)",
-                  fontSize: 13,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 6,
-                  background: "transparent",
-                  cursor: "pointer",
-                  borderColor: active ? "var(--accent)" : "var(--ink-faint)",
-                }}
+              <div
+                key={m.id}
+                className={"classcard" + (active ? " link" : "")}
+                style={{ ["--c" as string]: color, opacity: active ? 1 : 0.72 }}
+                onClick={active ? () => router.push(`/classes/${m.class.id}`) : undefined}
               >
-                {f}
-              </button>
-            );
-          })}
-        </div>
-
-        {error && <div style={{ color: "var(--danger)", marginBottom: 16 }}>{error}</div>}
-
-        {memberships !== null && filtered.length === 0 && (
-          <div
-            style={{
-              border: "1px solid var(--ink-faint)",
-              borderRadius: 14,
-              background: "var(--surface)",
-              padding: "48px 24px",
-              textAlign: "center",
-              color: "var(--ink-dim)",
-              fontSize: 14,
-            }}
-          >
-            {memberships.length === 0
-              ? "You haven't joined any classes yet. Tap “Join a class” and enter the code your teacher gave you."
-              : "Nothing in this filter."}
-          </div>
-        )}
-
-        {filtered.length > 0 && (
-          <div
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
-            className="classes-grid"
-          >
-            {filtered.map((m) => {
-              const cardStyle: React.CSSProperties = {
-                border: "1px solid var(--ink-faint)",
-                borderRadius: 14,
-                background: "var(--surface)",
-                padding: "18px 20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                opacity: m.status === "PENDING" ? 0.7 : 1,
-                textDecoration: "none",
-                color: "inherit",
-                cursor: m.status === "ACTIVE" ? "pointer" : "default",
-              };
-              const inner = (
-                <>
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
-                  <div style={{ fontSize: 22, fontWeight: 600 }}>{m.class.name}</div>
-                  {m.status === "PENDING" && (
-                    <span style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: 10,
-                      color: "var(--accent-2, var(--accent))",
-                      textTransform: "uppercase",
-                      letterSpacing: 1,
-                      border: "1px solid var(--ink-faint)",
-                      borderRadius: 999,
-                      padding: "2px 8px",
-                    }}>
+                <div className="ch">
+                  <div>
+                    <div className="cname">{m.class.name}</div>
+                    <div className="cteach">
+                      {m.class.owner.name ?? "Teacher"} · {m.class._count.lessons} lessons
+                    </div>
+                  </div>
+                  {active ? (
+                    <span className="stag">
+                      <span className="sdot" style={{ background: color }} /> enrolled
+                    </span>
+                  ) : (
+                    <span className="stag" style={{ color: "var(--accent)", borderColor: "var(--accent-line)" }}>
                       pending
                     </span>
                   )}
                 </div>
                 {m.class.description && (
-                  <div style={{ color: "var(--ink-dim)", fontSize: 14 }}>{m.class.description}</div>
+                  <div className="crow" style={{ color: "var(--ink-2)" }}>
+                    {m.class.description}
+                  </div>
                 )}
-                <div style={{ display: "flex", gap: 14, color: "var(--ink-dim)", fontSize: 13 }}>
-                  {m.class.owner.name && <span>Teacher: {m.class.owner.name}</span>}
-                  <span>{m.class._count.lessons} lessons</span>
-                </div>
-                </>
-              );
-              return m.status === "ACTIVE" ? (
-                <Link key={m.id} href={`/classes/${m.class.id}`} style={cardStyle}>
-                  {inner}
-                </Link>
-              ) : (
-                <div key={m.id} style={cardStyle}>
-                  {inner}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <CommandBar />
-      </div>
+                {active && (
+                  <div className="crow" style={{ marginTop: 12, justifyContent: "space-between" }}>
+                    <span className="stag" style={{ borderColor: "var(--stroke)" }}>
+                      open class
+                    </span>
+                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent)" }}>
+                      <StudentIcon name="arrow" size={13} />
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {showJoin && (
         <JoinModal
@@ -195,28 +148,9 @@ export default function ClassesPage() {
           }}
         />
       )}
-
-      <FloatingNav active={activeTab} onChange={setActiveTab} />
-
-      <style>{`
-        @media (max-width: 1080px) { .classes-grid { grid-template-columns: 1fr !important; } }
-      `}</style>
-    </>
+    </StudentShell>
   );
 }
-
-const joinBtnStyle: React.CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "8px 14px",
-  borderRadius: 999,
-  border: "1.4px solid var(--accent)",
-  background: "var(--accent-soft)",
-  color: "var(--accent)",
-  fontSize: 14,
-  cursor: "pointer",
-};
 
 function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () => void }) {
   const [code, setCode] = useState("");
@@ -250,7 +184,7 @@ function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () =>
   return (
     <div onClick={onClose} style={overlayStyle}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={modalStyle}>
-        <div style={{ fontSize: 22, fontWeight: 600 }}>Join a class</div>
+        <div style={{ fontSize: 22, fontWeight: 700 }}>Join a class</div>
         {done ? (
           <div style={{ color: "var(--accent)", fontSize: 15 }}>
             Request sent to {done}. Your teacher will approve you shortly.
@@ -268,9 +202,9 @@ function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () =>
               placeholder="e.g. 7KQ9MZ2"
               style={{
                 padding: "12px 14px",
-                borderRadius: 10,
-                border: "1.4px solid var(--stroke)",
-                background: "var(--bg)",
+                borderRadius: 11,
+                border: "1px solid var(--stroke-2)",
+                background: "rgba(0,0,0,0.25)",
                 color: "var(--ink)",
                 fontSize: 20,
                 fontFamily: "var(--font-mono)",
@@ -282,8 +216,10 @@ function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () =>
             />
             {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button type="button" onClick={onClose} style={ghostBtn}>Cancel</button>
-              <button type="submit" disabled={submitting || !code.trim()} style={{ ...joinBtnStyle, opacity: submitting || !code.trim() ? 0.5 : 1 }}>
+              <button type="button" onClick={onClose} className="btn">
+                Cancel
+              </button>
+              <button type="submit" disabled={submitting || !code.trim()} className="btn primary">
                 {submitting ? "Sending…" : "Request to join"}
               </button>
             </div>
@@ -297,30 +233,22 @@ function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () =>
 const overlayStyle: React.CSSProperties = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.55)",
+  background: "rgba(0,0,0,0.6)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   zIndex: 100,
+  padding: 16,
 };
 
 const modalStyle: React.CSSProperties = {
-  background: "var(--surface)",
-  border: "1.5px solid var(--stroke)",
-  borderRadius: 14,
+  background: "var(--bg-2)",
+  border: "1px solid var(--stroke-2)",
+  borderRadius: 17,
   padding: 24,
   width: "min(440px, 92vw)",
   display: "flex",
   flexDirection: "column",
   gap: 14,
-};
-
-const ghostBtn: React.CSSProperties = {
-  padding: "8px 14px",
-  borderRadius: 999,
-  border: "1.4px solid var(--stroke)",
-  background: "transparent",
-  color: "var(--ink)",
-  fontSize: 14,
-  cursor: "pointer",
+  boxShadow: "0 30px 60px -20px rgba(0,0,0,0.8)",
 };
