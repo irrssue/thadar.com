@@ -54,7 +54,13 @@ export default function FloatingNav({ active, onChange }: FloatingNavProps) {
 
   useEffect(() => {
     const saved = localStorage.getItem(NAV_OPEN_KEY);
-    if (saved !== null) setOpen(saved === "1");
+    if (saved !== null) {
+      setOpen(saved === "1");
+      return;
+    }
+    // No saved preference: keep the menu out of the way on phones, where the
+    // nav is a full-screen overlay rather than a docked sidebar.
+    if (window.innerWidth <= 768) setOpen(false);
   }, []);
 
   const toggleOpen = () =>

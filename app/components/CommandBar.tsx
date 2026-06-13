@@ -17,6 +17,7 @@ export default function CommandBar() {
       }}
     >
       <div
+        className="command-bar"
         style={{
           width: "min(50%, 720px)",
           minWidth: 280,

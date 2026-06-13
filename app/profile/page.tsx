@@ -76,7 +76,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "24px 34px 100px" }}>
+      <div className="app-page" style={{ maxWidth: 860, margin: "0 auto", padding: "24px 34px 100px" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 14, marginBottom: 24, flexWrap: "wrap" }}>
           <div style={{
             width: 56, height: 56, borderRadius: "50%",

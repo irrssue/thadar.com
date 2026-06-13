@@ -81,6 +81,7 @@ export default function IntentPage() {
         </div>
 
         <div
+          className="intent-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "1fr 1fr",
@@ -159,6 +160,12 @@ export default function IntentPage() {
           This sets where you land after login. It is not a permanent role.
         </p>
       </div>
+
+      <style>{`
+        @media (max-width: 420px) {
+          .intent-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   );
 }

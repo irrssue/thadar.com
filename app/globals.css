@@ -93,3 +93,36 @@ body {
   background-size: 22px 22px;
   transition: background-color 160ms, color 160ms;
 }
+
+/* Avoid horizontal scroll from any fixed-width children on small screens. */
+body {
+  overflow-x: hidden;
+}
+
+/* ===========================================================
+   Mobile refinements for the in-app shell (student pages).
+   Teacher pages handle their own gutters in teacher/layout.tsx.
+   `!important` is required to override the inline styles the
+   pages set on these elements.
+   =========================================================== */
+@media (max-width: 640px) {
+  /* Tighten gutters and push content clear of the fixed hamburger. */
+  .app-page {
+    padding: 64px 18px 132px !important;
+  }
+  /* Oversized hero headings (48px) don't fit a phone — scale them down. */
+  .app-page h1 {
+    font-size: 30px !important;
+    line-height: 1.15 !important;
+  }
+  /* The floating command bar should span almost the full width. */
+  .command-bar {
+    width: calc(100vw - 28px) !important;
+    min-width: 0 !important;
+  }
+}
+@media (max-width: 380px) {
+  .app-page h1 {
+    font-size: 26px !important;
+  }
+}

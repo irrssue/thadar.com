@@ -70,7 +70,7 @@ export default function InboxPage() {
 
   return (
     <>
-      <div style={{ maxWidth: 1080, margin: "0 auto", padding: "40px 56px 160px" }}>
+      <div className="app-page" style={{ maxWidth: 1080, margin: "0 auto", padding: "40px 56px 160px" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, marginBottom: 4 }}>
           <h1 style={{ fontWeight: 600, fontSize: 48, margin: 0, letterSpacing: "-0.5px" }}>
             Your <span style={{ color: "var(--accent)" }}>mail</span>

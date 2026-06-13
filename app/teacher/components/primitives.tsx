@@ -316,7 +316,7 @@ export function CommandBar() {
       pointerEvents: "none",
       zIndex: 40,
     }}>
-      <div style={{
+      <div className="command-bar" style={{
         width: "min(50%, 720px)",
         minWidth: 280,
         border: "1.4px solid var(--stroke)",

@@ -54,7 +54,7 @@ export default function ClassesPage() {
 
   return (
     <>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
+      <div className="app-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <h1 style={{ fontWeight: 600, fontSize: 48, margin: "0 0 4px", letterSpacing: "-0.5px" }}>
             Your <span style={{ color: "var(--accent)" }}>classes</span>

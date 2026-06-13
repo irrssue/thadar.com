@@ -54,7 +54,7 @@ export default function Home() {
 
   return (
     <>
-      <div style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
+      <div className="app-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
         <h1 style={{ fontWeight: 600, fontSize: 48, margin: "0 0 4px", letterSpacing: "-0.5px" }}>
           Welcome, <span style={{ color: "var(--accent)" }}>{firstName}</span>
         </h1>
