@@ -51,7 +51,10 @@ export default function TeacherHome() {
   return (
     <>
       <h1 style={{ fontWeight: 700, fontSize: 52, margin: "16px 0 4px", letterSpacing: "-0.5px" }}>
-        Welcome back, <span style={{ color: "var(--accent)" }}>{firstName}</span>
+        Welcome back,{" "}
+        <Link href="/teacher/profile" style={{ color: "var(--accent)", textDecoration: "none" }}>
+          {firstName}
+        </Link>
       </h1>
       <p style={{ color: "var(--ink-dim)", fontSize: 18, margin: "0 0 28px", fontWeight: 300 }}>{subtitle}</p>
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import FloatingNav from "../components/FloatingNav";
 import AskCard from "../components/AskCard";
@@ -56,7 +57,10 @@ export default function Home() {
     <>
       <div className="app-page" style={{ maxWidth: 1240, margin: "0 auto", padding: "40px 56px 160px" }}>
         <h1 style={{ fontWeight: 600, fontSize: 48, margin: "0 0 4px", letterSpacing: "-0.5px" }}>
-          Welcome, <span style={{ color: "var(--accent)" }}>{firstName}</span>
+          Welcome,{" "}
+          <Link href="/profile" style={{ color: "var(--accent)", textDecoration: "none" }}>
+            {firstName}
+          </Link>
         </h1>
 
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 28px" }}>
