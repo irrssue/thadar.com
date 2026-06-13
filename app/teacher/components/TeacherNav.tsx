@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon from "../../components/Icon";
@@ -15,9 +16,10 @@ const NAV_ITEMS = [
   { id: "profile",  label: "Profile",     href: "/teacher/profile" },
 ];
 
+const NAV_OPEN_KEY = "thadar-nav-open";
+
 const rowStyle = (isActive: boolean) =>
   ({
-    pointerEvents: "auto",
     width: "100%",
     height: 42,
     display: "flex",
@@ -45,6 +47,19 @@ const labelStyle = {
 export default function TeacherNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const [open, setOpen] = useState(true);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(NAV_OPEN_KEY);
+    if (saved !== null) setOpen(saved === "1");
+  }, []);
+
+  const toggleOpen = () =>
+    setOpen((v) => {
+      const next = !v;
+      localStorage.setItem(NAV_OPEN_KEY, next ? "1" : "0");
+      return next;
+    });
 
   const currentId =
     NAV_ITEMS.find((i) =>
@@ -52,87 +67,127 @@ export default function TeacherNav() {
     )?.id ?? "home";
 
   return (
-    <aside
-      className="side-nav"
-      style={{
-        position: "fixed",
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: "var(--sidebar-w)",
-        background: "var(--nav-bg)",
-        borderRight: "1px solid var(--nav-border)",
-        display: "flex",
-        flexDirection: "column",
-        padding: "18px 12px 16px",
-        gap: 4,
-        zIndex: 50,
-        overflowY: "auto",
-      }}
-      aria-label="Teacher navigation"
-    >
-      <Link
-        href="/teacher"
-        className="side-brand"
+    <>
+      <button
+        onClick={toggleOpen}
+        aria-label={open ? "Hide menu" : "Show menu"}
+        aria-expanded={open}
+        className="nav-burger"
         style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          padding: "0 12px",
-          height: 40,
-          marginBottom: 8,
-          textDecoration: "none",
+          position: "fixed",
+          top: 14,
+          left: 14,
+          width: 42,
+          height: 42,
+          borderRadius: 10,
+          border: "none",
+          background: "transparent",
           color: "var(--ink)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          zIndex: 60,
+          transition: "background 120ms",
         }}
-        aria-label="Thadar home"
       >
-        <span
+        <Icon name="menu" />
+      </button>
+
+      {open && (
+        <div
+          onClick={toggleOpen}
+          aria-hidden
           style={{
-            width: 22,
-            height: 22,
-            borderRadius: 7,
-            background: "var(--accent)",
-            display: "inline-block",
-            flexShrink: 0,
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.32)",
+            zIndex: 52,
           }}
         />
-        <span
-          className="side-label"
-          style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.3px", ...labelStyle }}
-        >
-          Thadar
-        </span>
-      </Link>
+      )}
 
-      <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-        {NAV_ITEMS.map((item) => {
-          const isActive = currentId === item.id;
-          return (
-            <Link
-              key={item.id}
-              href={item.href}
-              aria-label={item.label}
-              aria-current={isActive ? "page" : undefined}
-              style={rowStyle(isActive)}
-              className="nav-btn"
-            >
-              <span style={{ position: "relative", display: "inline-flex", flexShrink: 0 }}>
-                <Icon name={item.id} />
+      <aside
+        className="side-nav"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: "var(--sidebar-w)",
+          background: "var(--nav-bg)",
+          borderRight: "1px solid var(--nav-border)",
+          display: "flex",
+          flexDirection: "column",
+          padding: "18px 12px 16px",
+          gap: 4,
+          zIndex: 55,
+          overflowY: "auto",
+          transform: open ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 180ms ease",
+          boxShadow: open ? "var(--nav-shadow)" : "none",
+        }}
+        aria-label="Teacher navigation"
+        aria-hidden={!open}
+      >
+        <Link
+          href="/teacher"
+          className="side-brand"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "0 12px 0 52px",
+            height: 42,
+            marginBottom: 8,
+            textDecoration: "none",
+            color: "var(--ink)",
+          }}
+          aria-label="Thadar home"
+        >
+          <span
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              background: "var(--accent)",
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.3px", ...labelStyle }}>
+            Thadar
+          </span>
+        </Link>
+
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {NAV_ITEMS.map((item) => {
+            const isActive = currentId === item.id;
+            return (
+              <Link
+                key={item.id}
+                href={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                style={rowStyle(isActive)}
+                className="nav-btn"
+              >
+                <span style={{ display: "inline-flex", flexShrink: 0 }}>
+                  <Icon name={item.id} />
+                </span>
+                <span style={labelStyle}>{item.label}</span>
                 {item.badge ? (
                   <span
-                    className="badge-dot"
                     style={{
-                      position: "absolute",
-                      top: -4,
-                      right: -4,
-                      minWidth: 14,
-                      height: 14,
-                      padding: "0 4px",
+                      marginLeft: "auto",
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 6px",
                       borderRadius: 999,
                       background: "var(--accent)",
                       color: "var(--bg)",
                       fontFamily: "var(--font-mono)",
-                      fontSize: 9,
+                      fontSize: 10,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
@@ -142,78 +197,44 @@ export default function TeacherNav() {
                     {item.badge}
                   </span>
                 ) : null}
-              </span>
-              <span className="side-label" style={labelStyle}>
-                {item.label}
-              </span>
-              {item.badge ? (
-                <span
-                  className="side-label badge-pill"
-                  style={{
-                    marginLeft: "auto",
-                    minWidth: 18,
-                    height: 18,
-                    padding: "0 6px",
-                    borderRadius: 999,
-                    background: "var(--accent)",
-                    color: "var(--bg)",
-                    fontFamily: "var(--font-mono)",
-                    fontSize: 10,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 600,
-                  }}
-                >
-                  {item.badge}
-                </span>
-              ) : null}
-            </Link>
-          );
-        })}
-      </nav>
+              </Link>
+            );
+          })}
+        </nav>
 
-      <div
-        style={{
-          marginTop: "auto",
-          paddingTop: 12,
-          borderTop: "1px solid var(--nav-border)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 4,
-        }}
-      >
-        <button
-          onClick={toggle}
-          aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
-          style={rowStyle(false)}
-          className="nav-btn"
+        <div
+          style={{
+            marginTop: "auto",
+            paddingTop: 12,
+            borderTop: "1px solid var(--nav-border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
         >
-          <span style={{ display: "inline-flex", flexShrink: 0 }}>
-            <Icon name={theme === "dark" ? "sun" : "moon"} />
-          </span>
-          <span className="side-label" style={labelStyle}>
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </span>
-        </button>
-        <ViewSwitcher current="TEACHER" />
-      </div>
+          <button
+            onClick={toggle}
+            aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            style={rowStyle(false)}
+            className="nav-btn"
+          >
+            <span style={{ display: "inline-flex", flexShrink: 0 }}>
+              <Icon name={theme === "dark" ? "sun" : "moon"} />
+            </span>
+            <span style={labelStyle}>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          </button>
+          <ViewSwitcher current="TEACHER" />
+        </div>
+      </aside>
 
       <style>{`
         :root { --sidebar-w: 240px; }
-        body { padding-left: var(--sidebar-w); transition: padding-left 160ms; }
         .nav-btn:hover { background: var(--surface-hover); color: var(--ink); }
-        .badge-dot { display: none; }
-        @media (max-width: 880px) {
-          :root { --sidebar-w: 72px; }
-          .side-nav { padding-left: 8px; padding-right: 8px; }
-          .side-label { display: none; }
-          .side-brand { justify-content: center; padding: 0; }
-          .nav-btn { justify-content: center; gap: 0; padding: 0; }
-          .badge-pill { display: none; }
-          .badge-dot { display: inline-flex; }
+        .nav-burger:hover { background: var(--surface-hover); }
+        @media (max-width: 520px) {
+          :root { --sidebar-w: 86vw; }
         }
       `}</style>
-    </aside>
+    </>
   );
 }

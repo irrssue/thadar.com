@@ -233,6 +233,12 @@ export default function Icon({ name, size = 20 }: IconProps) {
           <path {...stroke} d="M20 20l-4.5-4.5" />
         </svg>
       );
+    case "menu":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24">
+          <path {...stroke} d="M4 6h16 M4 12h16 M4 18h16" />
+        </svg>
+      );
     default:
       return null;
   }
