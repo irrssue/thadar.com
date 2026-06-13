@@ -2,24 +2,54 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
-import StudentIcon from "./StudentIcon";
-import { initials } from "./subject";
+import Icon from "../Icon";
+import { useTheme } from "../ThemeProvider";
 import ViewSwitcher from "../ViewSwitcher";
 import "../../student.css";
 
 type NavId = "home" | "classes" | "assign" | "grades" | "inbox" | "profile";
 
-const NAV: { id: NavId; label: string; href: string }[] = [
-  { id: "home", label: "Home", href: "/home" },
-  { id: "classes", label: "Classes", href: "/classes" },
-  { id: "assign", label: "Assignments", href: "/assignments" },
-  { id: "grades", label: "Grades", href: "/grades" },
-  { id: "inbox", label: "Inbox", href: "/inbox" },
-  { id: "profile", label: "Profile", href: "/profile" },
+// Mirrors the teacher sidebar (TeacherNav) so the two surfaces match.
+// `icon` maps to the shared <Icon> set; "grades" has no glyph so it borrows
+// the trophy.
+const NAV: { id: NavId; label: string; href: string; icon: string }[] = [
+  { id: "home", label: "Home", href: "/home", icon: "home" },
+  { id: "classes", label: "Classes", href: "/classes", icon: "classes" },
+  { id: "assign", label: "Assignments", href: "/assignments", icon: "assign" },
+  { id: "grades", label: "Grades", href: "/grades", icon: "trophy" },
+  { id: "inbox", label: "Inbox", href: "/inbox", icon: "inbox" },
+  { id: "profile", label: "Profile", href: "/profile", icon: "profile" },
 ];
 
+const NAV_OPEN_KEY = "thadar-nav-open";
+
 type Badges = { assign: number; inbox: number };
+
+const rowStyle = (isActive: boolean) =>
+  ({
+    width: "100%",
+    height: 42,
+    display: "flex",
+    alignItems: "center",
+    gap: 14,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "none",
+    background: isActive ? "var(--nav-active)" : "transparent",
+    color: isActive ? "var(--ink)" : "var(--ink-dim)",
+    boxShadow: isActive ? "0 0 0 1px var(--nav-active-inset) inset" : "none",
+    cursor: "pointer",
+    textDecoration: "none",
+    fontFamily: "var(--font-sans)",
+    fontSize: 14,
+    fontWeight: isActive ? 500 : 400,
+    transition: "background 120ms, color 120ms",
+  }) as const;
+
+const labelStyle = {
+  whiteSpace: "nowrap" as const,
+  overflow: "hidden" as const,
+};
 
 export default function StudentShell({
   active,
@@ -28,12 +58,20 @@ export default function StudentShell({
   active: NavId;
   children: React.ReactNode;
 }) {
-  const { data: session } = useSession();
-  const [menu, setMenu] = useState(false);
+  const { theme, toggle } = useTheme();
+  const [open, setOpen] = useState(true);
   const [badges, setBadges] = useState<Badges>({ assign: 0, inbox: 0 });
 
-  const name = session?.user?.name ?? "Student";
-  const ini = initials(name);
+  useEffect(() => {
+    const saved = localStorage.getItem(NAV_OPEN_KEY);
+    if (saved !== null) {
+      setOpen(saved === "1");
+      return;
+    }
+    // No saved preference: keep the menu out of the way on phones, where the
+    // nav is a full-screen overlay rather than a docked sidebar.
+    if (window.innerWidth <= 768) setOpen(false);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -60,74 +98,190 @@ export default function StudentShell({
     };
   }, []);
 
+  const toggleOpen = () =>
+    setOpen((v) => {
+      const next = !v;
+      localStorage.setItem(NAV_OPEN_KEY, next ? "1" : "0");
+      return next;
+    });
+
   const badgeFor = (id: NavId) =>
     id === "assign" ? badges.assign : id === "inbox" ? badges.inbox : 0;
 
   return (
     <div className="student-surface">
       <div className="page" data-screen-label={active}>
-        <div className="topbar">
-          <button className="iconbtn" aria-label="Menu" onClick={() => setMenu(true)}>
-            <StudentIcon name="menu" size={22} />
-          </button>
-          <Link href="/home" className="brand">
-            thadar<b>.</b>
-          </Link>
-          <div className="spacer" />
-          <Link href="/profile" className="av" title="Profile" style={{ textDecoration: "none" }}>
-            {ini}
-          </Link>
-        </div>
-
         {children}
       </div>
 
-      {/* drawer overlay */}
-      <div className={"scrim " + (menu ? "open" : "")} onClick={() => setMenu(false)} />
-      <nav className={"drawer " + (menu ? "open" : "")} aria-hidden={!menu}>
-        <div className="drawer-hd">
-          <button className="iconbtn ghost" aria-label="Close menu" onClick={() => setMenu(false)}>
-            <StudentIcon name="close" size={20} />
-          </button>
-          <span className="brand">
-            thadar<b>.</b>
+      <button
+        onClick={toggleOpen}
+        aria-label={open ? "Hide menu" : "Show menu"}
+        aria-expanded={open}
+        className="nav-burger"
+        style={{
+          position: "fixed",
+          top: 18,
+          left: 14,
+          width: 42,
+          height: 42,
+          borderRadius: 10,
+          border: "none",
+          background: "transparent",
+          color: "var(--ink)",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          zIndex: 60,
+          transition: "background 120ms",
+        }}
+      >
+        <Icon name="menu" size={28} />
+      </button>
+
+      {open && (
+        <div
+          onClick={toggleOpen}
+          aria-hidden
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.32)",
+            zIndex: 52,
+          }}
+        />
+      )}
+
+      <aside
+        className="side-nav"
+        style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          bottom: 0,
+          width: "var(--sidebar-w)",
+          background: "var(--nav-bg)",
+          borderRight: "1px solid var(--nav-border)",
+          display: "flex",
+          flexDirection: "column",
+          padding: "18px 12px 16px",
+          gap: 4,
+          zIndex: 55,
+          overflowY: "auto",
+          transform: open ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 180ms ease",
+          boxShadow: open ? "var(--nav-shadow)" : "none",
+        }}
+        aria-label="Student navigation"
+        aria-hidden={!open}
+      >
+        <Link
+          href="/home"
+          className="side-brand"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "0 12px 0 52px",
+            height: 42,
+            marginBottom: 8,
+            textDecoration: "none",
+            color: "var(--ink)",
+          }}
+          aria-label="Thadar home"
+        >
+          <span
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 7,
+              background: "var(--accent)",
+              display: "inline-block",
+              flexShrink: 0,
+            }}
+          />
+          <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.3px", ...labelStyle }}>
+            Thadar
           </span>
-        </div>
-        <div className="drawer-user">
-          <span className="av" style={{ width: 38, height: 38 }}>
-            {ini}
-          </span>
-          <div>
-            <div style={{ fontSize: 16 }}>{name}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-dim)" }}>
-              student
-            </div>
-          </div>
-        </div>
-        <div className="drawer-sep" />
-        <div className="drawer-scroll">
-          {NAV.map((it) => {
-            const b = badgeFor(it.id);
+        </Link>
+
+        <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {NAV.map((item) => {
+            const isActive = active === item.id;
+            const badge = badgeFor(item.id);
             return (
               <Link
-                key={it.id}
-                href={it.href}
-                className={"drawer-item " + (active === it.id ? "active" : "")}
-                onClick={() => setMenu(false)}
-                aria-current={active === it.id ? "page" : undefined}
+                key={item.id}
+                href={item.href}
+                aria-label={item.label}
+                aria-current={isActive ? "page" : undefined}
+                style={rowStyle(isActive)}
+                className="nav-btn"
               >
-                <StudentIcon name={it.id === "home" ? "home" : it.id} size={20} />
-                <span>{it.label}</span>
-                {b > 0 ? <span className="badge2">{b}</span> : null}
+                <span style={{ display: "inline-flex", flexShrink: 0 }}>
+                  <Icon name={item.icon} />
+                </span>
+                <span style={labelStyle}>{item.label}</span>
+                {badge > 0 ? (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 6px",
+                      borderRadius: 999,
+                      background: "var(--accent)",
+                      color: "var(--bg)",
+                      fontFamily: "var(--font-mono)",
+                      fontSize: 10,
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {badge}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
-        </div>
-        {/* "Switch view" — intentionally left unchanged per design scope. */}
-        <div className="drawer-foot">
+        </nav>
+
+        <div
+          style={{
+            marginTop: "auto",
+            paddingTop: 12,
+            borderTop: "1px solid var(--nav-border)",
+            display: "flex",
+            flexDirection: "column",
+            gap: 4,
+          }}
+        >
+          <button
+            onClick={toggle}
+            aria-label={theme === "dark" ? "Switch to light" : "Switch to dark"}
+            style={rowStyle(false)}
+            className="nav-btn"
+          >
+            <span style={{ display: "inline-flex", flexShrink: 0 }}>
+              <Icon name={theme === "dark" ? "sun" : "moon"} />
+            </span>
+            <span style={labelStyle}>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+          </button>
           <ViewSwitcher current="STUDENT" />
         </div>
-      </nav>
+      </aside>
+
+      <style>{`
+        :root { --sidebar-w: 240px; }
+        .nav-btn:hover { background: var(--surface-hover); color: var(--ink); }
+        .nav-burger:hover { background: var(--surface-hover); }
+        @media (max-width: 520px) {
+          :root { --sidebar-w: 86vw; }
+        }
+      `}</style>
     </div>
   );
 }

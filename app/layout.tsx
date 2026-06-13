@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Geist, JetBrains_Mono, Kalam } from "next/font/google";
+import { Geist, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./components/ThemeProvider";
 
@@ -14,15 +14,6 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500", "600"],
   subsets: ["latin"],
   variable: "--font-mono",
-  display: "swap",
-});
-
-// Kalam (handwriting) is the display/UI face for the student surface only.
-// Loaded globally as a CSS variable; applied via .student-surface in student.css.
-const kalam = Kalam({
-  weight: ["300", "400", "700"],
-  subsets: ["latin"],
-  variable: "--font-kalam",
   display: "swap",
 });
 
@@ -40,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable} ${kalam.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${geist.variable} ${jetbrainsMono.variable}`} suppressHydrationWarning>
       <head>
         <Script id="theme-init" strategy="beforeInteractive">
           {themeInitScript}

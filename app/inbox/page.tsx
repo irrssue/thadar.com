@@ -217,7 +217,7 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: () => 
         </p>
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Recipient email" type="email" required style={inputStyle} autoFocus />
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" required maxLength={200} style={inputStyle} />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message…" required rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-kalam), cursive" }} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message…" required rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-sans)" }} />
         {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button type="button" onClick={onClose} className="btn">
@@ -256,9 +256,9 @@ const inputStyle: React.CSSProperties = {
   padding: "10px 12px",
   borderRadius: 11,
   border: "1px solid var(--stroke-2)",
-  background: "rgba(0,0,0,0.25)",
+  background: "var(--bg-2)",
   color: "var(--ink)",
   fontSize: 15,
   outline: "none",
-  fontFamily: "var(--font-kalam), cursive",
+  fontFamily: "var(--font-sans)",
 };

@@ -178,9 +178,9 @@ const inputStyle: React.CSSProperties = {
   padding: "10px 12px",
   borderRadius: 11,
   border: "1px solid var(--stroke-2)",
-  background: "rgba(0,0,0,0.25)",
+  background: "var(--bg-2)",
   color: "var(--ink)",
   fontSize: 15,
   outline: "none",
-  fontFamily: "var(--font-kalam), cursive",
+  fontFamily: "var(--font-sans)",
 };

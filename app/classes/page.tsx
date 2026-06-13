@@ -204,7 +204,7 @@ function JoinModal({ onClose, onJoined }: { onClose: () => void; onJoined: () =>
                 padding: "12px 14px",
                 borderRadius: 11,
                 border: "1px solid var(--stroke-2)",
-                background: "rgba(0,0,0,0.25)",
+                background: "var(--bg-2)",
                 color: "var(--ink)",
                 fontSize: 20,
                 fontFamily: "var(--font-mono)",

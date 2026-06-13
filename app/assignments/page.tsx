@@ -265,10 +265,10 @@ const textareaStyle: React.CSSProperties = {
   padding: "12px 14px",
   borderRadius: 11,
   border: "1px solid var(--stroke-2)",
-  background: "rgba(0,0,0,0.25)",
+  background: "var(--bg-2)",
   color: "var(--ink)",
   fontSize: 15,
-  fontFamily: "var(--font-kalam), cursive",
+  fontFamily: "var(--font-sans)",
   resize: "vertical",
   outline: "none",
 };

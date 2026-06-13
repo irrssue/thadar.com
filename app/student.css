@@ -1,11 +1,14 @@
 /* ============================================================
    Thadar — Student surface · hi-fi design system
    Ported from the Claude Design handoff (Student Dashboard).
-   Brand DNA: Kalam (display/UI) + JetBrains Mono (meta/numbers),
-   warm dark surface, faint dot-grid, warm "pencil" accent.
+   Brand DNA: Geist sans (UI) + JetBrains Mono (meta/numbers),
+   faint dot-grid, warm "pencil" accent.
 
    Everything is nested under `.student-surface` so it only styles
-   student pages — teacher / auth surfaces are untouched.
+   student pages — teacher / auth surfaces are untouched. Colour
+   tokens default to dark here and are overridden for light mode in
+   the `[data-theme="light"] .student-surface` block below, so the
+   nav's dark/light toggle themes the whole surface.
    ============================================================ */
 
 .student-surface {
@@ -42,28 +45,35 @@
   --c-5: #eccf82;
   --c-6: #e0908f;
 
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.8);
+
+  /* theme-dependent chrome (overridden for light mode below) */
+  --s-dot: rgba(255, 255, 255, 0.035);
+  --s-glow: rgba(230, 189, 124, 0.05);
+  --s-scroll: rgba(255, 255, 255, 0.12);
+  --s-scroll-hover: rgba(255, 255, 255, 0.22);
+
   --radius: 17px;
   --radius-sm: 11px;
-  --shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 18px 40px -24px rgba(0, 0, 0, 0.8);
   --gap: 18px;
 
   min-height: 100vh;
   background: var(--bg);
   color: var(--ink);
-  font-family: var(--font-kalam), "Comic Sans MS", cursive;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
   background-image:
-    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.035) 1px, transparent 0),
-    radial-gradient(1100px 700px at 78% -8%, rgba(230, 189, 124, 0.05), transparent 60%);
+    radial-gradient(circle at 1px 1px, var(--s-dot) 1px, transparent 0),
+    radial-gradient(1100px 700px at 78% -8%, var(--s-glow), transparent 60%);
   background-size: 24px 24px, 100% 100%;
 
   ::selection { background: var(--accent-soft); }
 
   /* scrollbars */
-  * { scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, 0.14) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--s-scroll) transparent; }
   *::-webkit-scrollbar { width: 9px; height: 9px; }
-  *::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.12); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
-  *::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.22); background-clip: content-box; }
+  *::-webkit-scrollbar-thumb { background: var(--s-scroll); border-radius: 6px; border: 2px solid transparent; background-clip: content-box; }
+  *::-webkit-scrollbar-thumb:hover { background: var(--s-scroll-hover); background-clip: content-box; }
 
   /* ---------------- page chrome ---------------- */
   .page { max-width: 1280px; margin: 0 auto; padding: 32px 48px 96px; }
@@ -174,7 +184,7 @@
   .fpill:hover { border-color: var(--stroke-2); }
   .fpill.on { color: var(--accent); border-color: var(--accent-line); background: var(--accent-soft); }
 
-  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--stroke-2); background: var(--panel); color: var(--ink); font-family: var(--font-kalam), cursive; font-size: 15px; cursor: pointer; transition: border-color 140ms, background 140ms; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 9px 16px; border-radius: 999px; border: 1px solid var(--stroke-2); background: var(--panel); color: var(--ink); font-family: var(--font-sans); font-size: 15px; cursor: pointer; transition: border-color 140ms, background 140ms; }
   .btn:hover { border-color: var(--accent-line); }
   .btn:disabled { opacity: 0.5; cursor: default; }
   .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
@@ -226,35 +236,9 @@
   .prefrow .pl { font-size: 15px; }
   .prefrow .pv { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--ink-dim); }
 
-  /* ---------------- top bar (hamburger) ---------------- */
-  .topbar { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
-  .iconbtn { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--stroke); background: var(--panel); color: var(--ink-2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: color 140ms, border-color 140ms, background 140ms; }
-  .iconbtn:hover { color: var(--ink); border-color: var(--stroke-2); background: var(--panel-2); }
-  .iconbtn.ghost { border-color: transparent; background: transparent; }
-  .topbar .brand { font-family: var(--font-mono); font-weight: 600; letter-spacing: 1.5px; font-size: 15px; color: var(--ink); text-transform: lowercase; text-decoration: none; }
-  .topbar .brand b { color: var(--accent); }
-  .topbar .spacer { margin-left: auto; }
-
-  /* ---------------- nav drawer overlay (YouTube-style) ---------------- */
-  .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(2px); z-index: 60; opacity: 0; pointer-events: none; transition: opacity 180ms; }
-  .scrim.open { opacity: 1; pointer-events: auto; }
-  .drawer { position: fixed; top: 0; left: 0; bottom: 0; width: 286px; background: #131316; border-right: 1px solid var(--stroke); z-index: 61; transform: translateX(-101%); transition: transform 230ms cubic-bezier(.4, 0, .2, 1); display: flex; flex-direction: column; padding: 14px 12px; box-shadow: 30px 0 60px -30px rgba(0, 0, 0, 0.8); }
-  .drawer.open { transform: translateX(0); }
-  .drawer-hd { display: flex; align-items: center; gap: 10px; padding: 4px 6px 14px; }
-  .drawer-hd .brand { font-family: var(--font-mono); font-weight: 600; letter-spacing: 1.5px; font-size: 15px; color: var(--ink); }
-  .drawer-hd .brand b { color: var(--accent); }
-  .drawer-user { display: flex; align-items: center; gap: 12px; padding: 8px 10px 14px; }
-  .drawer-sep { height: 1px; background: var(--stroke); margin: 4px 8px 10px; }
-  .drawer-scroll { display: flex; flex-direction: column; gap: 2px; overflow-y: auto; flex: 1; }
-  .drawer-item { display: flex; align-items: center; gap: 15px; width: 100%; padding: 12px 14px; border: none; border-radius: 11px; background: transparent; color: var(--ink-2); cursor: pointer; font-family: var(--font-kalam), cursive; font-size: 16.5px; text-align: left; transition: background 140ms, color 140ms; text-decoration: none; }
-  .drawer-item:hover { background: var(--panel-2); color: var(--ink); }
-  .drawer-item.active { background: var(--accent-soft); color: var(--accent); }
-  .drawer-item .badge2 { margin-left: auto; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--bg); font-family: var(--font-mono); font-size: 10px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
-  .drawer-foot { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--stroke); }
-
   /* ---------------- minimal home ---------------- */
   .hero { margin-bottom: 22px; }
-  .greet { font-family: var(--font-kalam), cursive; font-weight: 700; font-size: 46px; line-height: 1.04; letter-spacing: -0.5px; margin: 0; }
+  .greet { font-family: var(--font-sans); font-weight: 700; font-size: 46px; line-height: 1.04; letter-spacing: -0.5px; margin: 0; }
   .greet .var { color: var(--accent); text-decoration: none; }
   .subline { color: var(--ink-2); font-size: 17px; font-weight: 300; margin: 10px 0 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .subline .sep { color: var(--ink-faint); }
@@ -294,13 +278,47 @@
     .d-2 { grid-template-columns: 1fr; }
   }
   @media (max-width: 760px) {
-    .page { padding: 22px 18px 64px; }
+    /* Top padding clears the fixed hamburger button (top:18, h:42). */
+    .page { padding: 64px 18px 64px; }
     .greet { font-size: 33px; }
     .bento-min { grid-template-columns: 1fr; grid-template-areas: "due" "class" "grade"; }
     .cgrid { grid-template-columns: 1fr; }
     .maild { grid-template-columns: 40px 1fr auto; }
     .maild .mp { display: none; }
     .recent-mail .rm-open { display: none; }
-    .drawer { width: 84vw; }
   }
+}
+
+/* ============================================================
+   Light mode — overrides the dark defaults above so the nav's
+   dark/light toggle re-themes the student surface. Mirrors the
+   warm light palette used by the teacher surface (globals.css).
+   ============================================================ */
+[data-theme="light"] .student-surface {
+  --bg: #f7f5f0;
+  --bg-2: #ffffff;
+  --panel: rgba(0, 0, 0, 0.025);
+  --panel-2: rgba(0, 0, 0, 0.045);
+  --stroke: rgba(0, 0, 0, 0.1);
+  --stroke-2: rgba(0, 0, 0, 0.17);
+
+  --ink: #1f1c17;
+  --ink-2: #514d45;
+  --ink-dim: #6a6760;
+  --ink-faint: #a8a39a;
+
+  --accent: #b8893d;
+  --accent-deep: #9a6f2e;
+  --accent-soft: rgba(184, 137, 61, 0.14);
+  --accent-line: rgba(184, 137, 61, 0.45);
+
+  --danger: #c44a4a;
+  --danger-soft: rgba(196, 74, 74, 0.12);
+  --good: #4f9e6a;
+
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 18px 40px -28px rgba(60, 50, 30, 0.3);
+  --s-dot: rgba(0, 0, 0, 0.05);
+  --s-glow: rgba(184, 137, 61, 0.06);
+  --s-scroll: rgba(0, 0, 0, 0.18);
+  --s-scroll-hover: rgba(0, 0, 0, 0.3);
 }
