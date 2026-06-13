@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import FloatingNav from "../components/FloatingNav";
 import CommandBar from "../components/CommandBar";
 import Icon from "../components/Icon";
@@ -127,20 +128,22 @@ export default function ClassesPage() {
             style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
             className="classes-grid"
           >
-            {filtered.map((m) => (
-              <div
-                key={m.id}
-                style={{
-                  border: "1px solid var(--ink-faint)",
-                  borderRadius: 14,
-                  background: "var(--surface)",
-                  padding: "18px 20px",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 10,
-                  opacity: m.status === "PENDING" ? 0.7 : 1,
-                }}
-              >
+            {filtered.map((m) => {
+              const cardStyle: React.CSSProperties = {
+                border: "1px solid var(--ink-faint)",
+                borderRadius: 14,
+                background: "var(--surface)",
+                padding: "18px 20px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+                opacity: m.status === "PENDING" ? 0.7 : 1,
+                textDecoration: "none",
+                color: "inherit",
+                cursor: m.status === "ACTIVE" ? "pointer" : "default",
+              };
+              const inner = (
+                <>
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
                   <div style={{ fontSize: 22, fontWeight: 600 }}>{m.class.name}</div>
                   {m.status === "PENDING" && (
@@ -165,8 +168,18 @@ export default function ClassesPage() {
                   {m.class.owner.name && <span>Teacher: {m.class.owner.name}</span>}
                   <span>{m.class._count.lessons} lessons</span>
                 </div>
-              </div>
-            ))}
+                </>
+              );
+              return m.status === "ACTIVE" ? (
+                <Link key={m.id} href={`/classes/${m.class.id}`} style={cardStyle}>
+                  {inner}
+                </Link>
+              ) : (
+                <div key={m.id} style={cardStyle}>
+                  {inner}
+                </div>
+              );
+            })}
           </div>
         )}
 

@@ -25,13 +25,15 @@ export async function GET(
 
   const { id } = await ctx.params;
 
+  // Any active member may load class info; the invite code is teacher-only and
+  // is stripped for students below.
   const membership = await prisma.classMembership.findFirst({
     where: {
       userId: session.user.id,
       classId: id,
-      role: "TEACHER",
       status: "ACTIVE",
     },
+    select: { role: true },
   });
   if (!membership) {
     return NextResponse.json<ApiResponse<never>>(
@@ -39,6 +41,7 @@ export async function GET(
       { status: 404 },
     );
   }
+  const isTeacher = membership.role === "TEACHER";
 
   const klass = await prisma.class.findUnique({
     where: { id },
@@ -49,6 +52,7 @@ export async function GET(
       inviteCode: true,
       inviteCodeEnabled: true,
       createdAt: true,
+      owner: { select: { name: true } },
       _count: {
         select: {
           memberships: { where: { role: "STUDENT", status: "ACTIVE" } },
@@ -63,8 +67,16 @@ export async function GET(
     );
   }
 
-  return NextResponse.json<ApiResponse<typeof klass>>(
-    { success: true, data: klass },
+  // Students must never see the invite code or whether joining is enabled.
+  const data = {
+    ...klass,
+    role: membership.role,
+    inviteCode: isTeacher ? klass.inviteCode : null,
+    inviteCodeEnabled: isTeacher ? klass.inviteCodeEnabled : false,
+  };
+
+  return NextResponse.json<ApiResponse<typeof data>>(
+    { success: true, data },
     { status: 200 },
   );
 }
