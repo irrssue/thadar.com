@@ -188,11 +188,218 @@ async function main() {
     },
   });
 
+  // ============================================================
+  // Rich dataset — fills out the redesigned student dashboard so
+  // its charts, gauges and trends have real data to draw. Extra
+  // classes, graded assignments spread over the term, and inbox
+  // messages. Everything below is idempotent (matched on natural
+  // keys) and additive — it never edits the core rows above.
+  // ============================================================
+  const DAY = 86_400_000;
+
+  const teacher2 = await prisma.user.upsert({
+    where: { email: "teacher2@thadar.com" },
+    update: {},
+    create: {
+      email: "teacher2@thadar.com",
+      name: "U Bo Bo",
+      passwordHash,
+      defaultView: "TEACHER",
+      teacherStatus: "VERIFIED",
+      emailVerified: true,
+    },
+  });
+
+  type ASpec = { title: string; dueOffset: number; grade?: string; late?: boolean };
+  type CSpec = {
+    name: string;
+    description: string;
+    ownerId: string;
+    enroll: "ACTIVE" | "PENDING";
+    lessons: string[];
+    assignments: ASpec[];
+  };
+
+  // dueOffset is days from now (negative = past). Past assignments with a grade
+  // get a RETURNED submission dated around their due date; open ones stay open.
+  const catalog: CSpec[] = [
+    {
+      name: "English Foundations", // reuses the class created above
+      description: "Reading, writing, and conversation — built one lesson at a time.",
+      ownerId: teacher.id,
+      enroll: "ACTIVE",
+      lessons: [],
+      assignments: [
+        { title: "Reading response — Ch. 1", dueOffset: -49, grade: "A-" },
+        { title: "Daily routine paragraph", dueOffset: -21, grade: "90%" },
+        { title: "Vocabulary quiz 2", dueOffset: -7, grade: "88" },
+        { title: "Reflection journal", dueOffset: -1 },
+        { title: "Essay: my village", dueOffset: 3 },
+      ],
+    },
+    {
+      name: "Mathematics",
+      description: "Numbers, patterns, and problem solving — step by step.",
+      ownerId: teacher.id,
+      enroll: "ACTIVE",
+      lessons: ["Place value", "Fractions", "Word problems"],
+      assignments: [
+        { title: "Times tables quiz", dueOffset: -56, grade: "92" },
+        { title: "Fractions worksheet", dueOffset: -35, grade: "B+" },
+        { title: "Word problems set 1", dueOffset: -14, grade: "95" },
+        { title: "Decimals practice", dueOffset: -4, grade: "A" },
+        { title: "Long division drills", dueOffset: 0 },
+        { title: "Chapter 5 review", dueOffset: 5 },
+      ],
+    },
+    {
+      name: "General Science",
+      description: "How the world works — observe, question, experiment.",
+      ownerId: teacher.id,
+      enroll: "ACTIVE",
+      lessons: ["The water cycle", "Plants", "Forces"],
+      assignments: [
+        { title: "Water cycle diagram", dueOffset: -42, grade: "85" },
+        { title: "Plant growth report", dueOffset: -19, grade: "A-", late: true },
+        { title: "Forces worksheet", dueOffset: -6, grade: "93" },
+        { title: "Lab safety quiz", dueOffset: 2 },
+      ],
+    },
+    {
+      name: "Geography",
+      description: "Maps, regions, and the climate of Myanmar and beyond.",
+      ownerId: teacher2.id,
+      enroll: "ACTIVE",
+      lessons: ["Maps & directions", "Myanmar regions"],
+      assignments: [
+        { title: "Map reading task", dueOffset: -30, grade: "78" },
+        { title: "Regions quiz", dueOffset: -10, grade: "B" },
+        { title: "Climate poster", dueOffset: 4 },
+      ],
+    },
+    {
+      name: "Art Club",
+      description: "Colour, line, and imagination — an after-school studio.",
+      ownerId: teacher2.id,
+      enroll: "PENDING",
+      lessons: ["Colour theory"],
+      assignments: [],
+    },
+  ];
+
+  for (const c of catalog) {
+    let cls = await prisma.class.findFirst({
+      where: { ownerId: c.ownerId, name: c.name },
+      select: { id: true },
+    });
+    if (!cls) {
+      cls = await prisma.class.create({
+        data: { ownerId: c.ownerId, name: c.name, description: c.description },
+        select: { id: true },
+      });
+    }
+
+    // Owner is an active TEACHER member; student enrolls per the spec.
+    await prisma.classMembership.upsert({
+      where: { userId_classId: { userId: c.ownerId, classId: cls.id } },
+      update: { role: "TEACHER", status: "ACTIVE" },
+      create: { userId: c.ownerId, classId: cls.id, role: "TEACHER", status: "ACTIVE" },
+    });
+    await prisma.classMembership.upsert({
+      where: { userId_classId: { userId: student.id, classId: cls.id } },
+      update: { role: "STUDENT", status: c.enroll },
+      create: { userId: student.id, classId: cls.id, role: "STUDENT", status: c.enroll },
+    });
+
+    // Published lessons (idempotent on classId + title).
+    for (let i = 0; i < c.lessons.length; i++) {
+      const title = c.lessons[i];
+      const existing = await prisma.lesson.findFirst({
+        where: { classId: cls.id, title },
+        select: { id: true },
+      });
+      if (!existing) {
+        await prisma.lesson.create({
+          data: { classId: cls.id, title, content: `## ${title}\n\nNotes and practice.`, order: i, published: true },
+        });
+      }
+    }
+
+    // Published assignments + the student's graded submissions.
+    for (const a of c.assignments) {
+      const dueAt = new Date(Date.now() + a.dueOffset * DAY);
+      let asg = await prisma.assignment.findFirst({
+        where: { classId: cls.id, title: a.title },
+        select: { id: true },
+      });
+      if (!asg) {
+        asg = await prisma.assignment.create({
+          data: {
+            classId: cls.id,
+            authorId: c.ownerId,
+            title: a.title,
+            instructions: "Complete the task and submit your work.",
+            dueAt,
+            status: "PUBLISHED",
+          },
+          select: { id: true },
+        });
+      }
+      if (a.grade && c.enroll === "ACTIVE") {
+        const submittedAt = new Date(dueAt.getTime() + (a.late ? 2 * DAY : -1 * DAY));
+        const gradedAt = new Date(dueAt.getTime() + DAY);
+        await prisma.submission.upsert({
+          where: { assignmentId_studentId: { assignmentId: asg.id, studentId: student.id } },
+          update: { status: "RETURNED", grade: a.grade, submittedAt, gradedAt },
+          create: {
+            assignmentId: asg.id,
+            studentId: student.id,
+            content: "My completed work.",
+            status: "RETURNED",
+            grade: a.grade,
+            submittedAt,
+            gradedAt,
+          },
+        });
+      }
+    }
+  }
+
+  // Inbox messages from teachers (idempotent on sender + recipient + subject).
+  const mails: { from: { id: string }; subject: string; body: string; offset: number; unread: boolean }[] = [
+    { from: teacher, subject: "Nice work on decimals practice", body: "Your decimals practice was excellent — full marks. Keep showing your steps!", offset: -0.3, unread: true },
+    { from: teacher, subject: "Long division drills due today", body: "Quick reminder that the long division drills are due today. Message me if you get stuck.", offset: -1, unread: true },
+    { from: teacher2, subject: "Welcome to Art Club", body: "Thanks for requesting to join Art Club — I'll approve you before our first session on colour theory.", offset: -2, unread: false },
+    { from: teacher2, subject: "Geography: climate poster tips", body: "For the climate poster, compare two regions and include a simple rainfall chart.", offset: -4, unread: false },
+    { from: teacher, subject: "Reading response — feedback", body: "Lovely reading response. Watch your past-tense endings and you'll be at an A.", offset: -7, unread: false },
+  ];
+  for (const m of mails) {
+    const existing = await prisma.message.findFirst({
+      where: { senderId: m.from.id, recipientId: student.id, subject: m.subject },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.message.create({
+        data: {
+          senderId: m.from.id,
+          recipientId: student.id,
+          subject: m.subject,
+          body: m.body,
+          createdAt: new Date(Date.now() + m.offset * DAY),
+          readAt: m.unread ? null : new Date(),
+        },
+      });
+    }
+  }
+
   console.log("Seed complete:");
   console.log(`  teacher  teacher@thadar.com / ${PASSWORD}`);
+  console.log(`  teacher  teacher2@thadar.com / ${PASSWORD}`);
   console.log(`  student  student@thadar.com / ${PASSWORD}`);
   console.log(`  class    "${klass.name}"  invite code: ${INVITE_CODE}`);
-  console.log(`  lessons  ${lessons.length} (3 published, 1 draft)`);
+  console.log(`  classes  ${catalog.length + 1} total for the student (incl. 1 pending)`);
+  console.log(`  lessons  ${lessons.length} in English (3 published, 1 draft) + extras`);
+  console.log(`  data     graded assignments + inbox messages for a populated dashboard`);
 }
 
 main()
