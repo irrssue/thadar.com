@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -8,6 +8,8 @@ import StudentShell from "../components/student/StudentShell";
 import StudentIcon from "../components/student/StudentIcon";
 import { subjectColor, initials } from "../components/student/subject";
 import { dueInfo, todayLine } from "../components/student/dates";
+import { MiniRing, MiniSpark, CountUp } from "../components/student/charts";
+import { gradePercent, letterFromPercent, gpaFromPercents } from "../components/student/grades";
 
 type Submission = {
   id: string;
@@ -73,16 +75,50 @@ export default function Home() {
 
   const due = (feed ?? []).filter((f) => !f.submission);
   const dueToday = due.filter((f) => dueInfo(f.dueAt).state === "today").length;
-  const graded = (feed ?? []).filter(
-    (f) => f.submission && f.submission.status !== "SUBMITTED" && f.submission.grade,
-  );
   const activeClasses = (classes ?? []).filter((c) => c.status === "ACTIVE");
   const latest = mail?.messages[0] ?? null;
   const unread = mail?.unread ?? 0;
 
+  // derived grade signal (GPA, sparkline, recent) from the feed
+  const grades = useMemo(() => {
+    const items = feed ?? [];
+    const graded = items
+      .filter((f) => f.submission && f.submission.status !== "SUBMITTED" && f.submission.grade)
+      .map((f) => ({ ...f, pct: gradePercent(f.submission!.grade), when: new Date(f.submission!.submittedAt).getTime() }))
+      .filter((g): g is FeedItem & { pct: number; when: number } => g.pct != null)
+      .sort((a, b) => a.when - b.when);
+    const percents = graded.map((g) => g.pct);
+    const gpa = gpaFromPercents(percents);
+    return { graded, percents, gpa, recent: graded.slice(-3).reverse() };
+  }, [feed]);
+
+  // latest grade letter per active class for the class minis
+  const classLetter = useMemo(() => {
+    const map = new Map<string, number[]>();
+    for (const f of feed ?? []) {
+      if (f.submission && f.submission.status !== "SUBMITTED" && f.submission.grade) {
+        const pct = gradePercent(f.submission.grade);
+        if (pct != null) map.set(f.class.id, [...(map.get(f.class.id) ?? []), pct]);
+      }
+    }
+    const out = new Map<string, string>();
+    for (const [id, pcts] of map) out.set(id, letterFromPercent(Math.round(pcts.reduce((s, p) => s + p, 0) / pcts.length)));
+    return out;
+  }, [feed]);
+
+  // soonest upcoming due label per class
+  const classNext = useMemo(() => {
+    const map = new Map<string, string>();
+    const items = [...(feed ?? [])]
+      .filter((f) => !f.submission && f.dueAt)
+      .sort((a, b) => new Date(a.dueAt!).getTime() - new Date(b.dueAt!).getTime());
+    for (const f of items) if (!map.has(f.class.id)) map.set(f.class.id, dueInfo(f.dueAt).label);
+    return map;
+  }, [feed]);
+
   return (
     <StudentShell active="home">
-      <div className="hero">
+      <div className="hero reveal">
         <h1 className="greet">
           Welcome back,{" "}
           <Link href="/profile" className="var">
@@ -94,8 +130,13 @@ export default function Home() {
           {due.length > 0 && (
             <>
               <span className="sep">·</span>
-              <b>{dueToday > 0 ? dueToday : due.length}</b>{" "}
-              {dueToday > 0 ? "due today" : "open"}
+              <b>{dueToday > 0 ? dueToday : due.length}</b> {dueToday > 0 ? "due today" : "open"}
+            </>
+          )}
+          {grades.gpa != null && (
+            <>
+              <span className="sep">·</span>
+              <span>GPA {grades.gpa.toFixed(2)}</span>
             </>
           )}
           {unread > 0 && (
@@ -109,7 +150,7 @@ export default function Home() {
 
       {/* most-recent message strip */}
       {latest && (
-        <Link href="/inbox" className="recent-mail">
+        <Link href="/inbox" className="recent-mail reveal" style={{ animationDelay: "60ms" }}>
           <span
             className="av-sm"
             style={{
@@ -136,7 +177,7 @@ export default function Home() {
         </Link>
       )}
 
-      <div className="bento-min">
+      <div className="bento-min stagger">
         {/* ---- Due soon ---- */}
         <button className="tile link area-due" onClick={() => router.push("/assignments")}>
           <div className="tile-hd">
@@ -200,14 +241,17 @@ export default function Home() {
             )}
             {activeClasses.slice(0, 4).map((c) => {
               const color = subjectColor(c.class.id);
+              const letter = classLetter.get(c.class.id);
+              const next = classNext.get(c.class.id);
               return (
                 <div key={c.id} className="cmini" style={{ ["--c" as string]: color }}>
                   <div className="cn">{c.class.name}</div>
                   <div className="tch">{c.class.owner.name ?? "Teacher"}</div>
                   <div className="cfoot">
                     <span className="grade" style={{ color }}>
-                      {c.class._count.lessons} lessons
+                      {letter ?? `${c.class._count.lessons} lessons`}
                     </span>
+                    {next && <span className="nx">next: {next}</span>}
                   </div>
                 </div>
               );
@@ -225,19 +269,40 @@ export default function Home() {
         <button className="tile link area-grade" onClick={() => router.push("/grades")}>
           <div className="tile-hd">
             <div>
-              <div className="tile-eyebrow">Recently graded</div>
+              <div className="tile-eyebrow">This term</div>
               <div className="tile-title">Grades</div>
             </div>
             <span className="tile-open">
               open <StudentIcon name="arrow" size={13} />
             </span>
           </div>
+
+          {grades.gpa != null ? (
+            <div className="gpa-wrap">
+              <MiniRing pct={(grades.gpa / 4) * 100} size={66} stroke={7}>
+                <div className="ring-mini-num">
+                  <CountUp to={grades.gpa} dec={1} />
+                </div>
+              </MiniRing>
+              <div className="gpa-meta">
+                GPA · 4.0
+                <br />
+                <span>{grades.graded.length} graded</span>
+              </div>
+              {grades.percents.length >= 2 && (
+                <div className="gpa-spark">
+                  <MiniSpark data={grades.percents} w={84} h={34} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="empty" style={{ marginBottom: 10 }}>
+              {feed === null ? "Loading…" : "No grades yet."}
+            </div>
+          )}
+
           <div className="glist">
-            {feed === null && <div className="empty">Loading…</div>}
-            {feed !== null && graded.length === 0 && (
-              <div className="empty">No grades yet.</div>
-            )}
-            {graded.slice(0, 3).map((g) => (
+            {grades.recent.map((g) => (
               <div key={g.id} className="grow">
                 <span className="sdot" style={{ background: subjectColor(g.class.id) }} />
                 <span className="gn">{g.title}</span>
@@ -245,9 +310,9 @@ export default function Home() {
               </div>
             ))}
           </div>
-          {graded.length > 0 && (
+          {grades.graded.length > 0 && (
             <div className="tile-foot">
-              <span>{graded.length} graded</span>
+              <span>{grades.graded.length} graded</span>
               <span className="go">
                 Grade report <StudentIcon name="arrow" size={12} />
               </span>

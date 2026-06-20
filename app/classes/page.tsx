@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import StudentShell from "../components/student/StudentShell";
 import StudentIcon from "../components/student/StudentIcon";
 import { subjectColor } from "../components/student/subject";
+import { dueInfo } from "../components/student/dates";
+import { RadialGauge, MiniSpark } from "../components/student/charts";
+import { gradePercent, letterFromPercent } from "../components/student/grades";
 
 type Membership = {
   id: string;
@@ -19,37 +22,107 @@ type Membership = {
   };
 };
 
+type Submission = {
+  id: string;
+  status: "SUBMITTED" | "GRADED" | "RETURNED";
+  grade: string | null;
+  submittedAt: string;
+};
+
+type FeedItem = {
+  id: string;
+  title: string;
+  dueAt: string | null;
+  class: { id: string; name: string };
+  submission: Submission | null;
+};
+
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
 const FILTERS = ["All", "Active", "Pending"] as const;
+
+// per-class signal derived from the assignment feed
+type ClassStat = {
+  trend: number[]; // chronological graded percents
+  avg: number | null;
+  letter: string | null;
+  next: { title: string; label: string; state: string } | null;
+};
 
 export default function ClassesPage() {
   const router = useRouter();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
   const [memberships, setMemberships] = useState<Membership[] | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showJoin, setShowJoin] = useState(false);
 
   async function load() {
     setError(null);
-    const res = await fetch("/api/memberships", { cache: "no-store" });
-    const json: ApiResponse<Membership[]> = await res.json();
-    if (!json.success) {
-      setError(json.error);
+    const [mRes, aRes] = await Promise.all([
+      fetch("/api/memberships", { cache: "no-store" }),
+      fetch("/api/assignments", { cache: "no-store" }),
+    ]);
+    const mJson: ApiResponse<Membership[]> = await mRes.json();
+    const aJson: ApiResponse<FeedItem[]> = await aRes.json();
+    if (!mJson.success) {
+      setError(mJson.error);
       return;
     }
-    setMemberships(json.data);
+    setMemberships(mJson.data);
+    if (aJson.success) setFeed(aJson.data);
   }
 
   useEffect(() => {
     load();
   }, []);
 
+  // class id → derived stats from the assignment feed
+  const stats = useMemo(() => {
+    const map = new Map<string, ClassStat>();
+    const graded = new Map<string, { when: number; pct: number }[]>();
+    const upcoming = new Map<string, { title: string; due: string }[]>();
+    for (const f of feed) {
+      const cid = f.class.id;
+      if (f.submission && f.submission.status !== "SUBMITTED" && f.submission.grade) {
+        const pct = gradePercent(f.submission.grade);
+        if (pct != null) {
+          const arr = graded.get(cid) ?? [];
+          arr.push({ when: new Date(f.submission.submittedAt).getTime(), pct });
+          graded.set(cid, arr);
+        }
+      }
+      if (!f.submission && f.dueAt) {
+        const arr = upcoming.get(cid) ?? [];
+        arr.push({ title: f.title, due: f.dueAt });
+        upcoming.set(cid, arr);
+      }
+    }
+    const ids = new Set<string>([...graded.keys(), ...upcoming.keys()]);
+    for (const cid of ids) {
+      const g = (graded.get(cid) ?? []).sort((a, b) => a.when - b.when);
+      const trend = g.map((x) => x.pct);
+      const avg = trend.length ? Math.round(trend.reduce((s, p) => s + p, 0) / trend.length) : null;
+      const up = (upcoming.get(cid) ?? []).sort(
+        (a, b) => new Date(a.due).getTime() - new Date(b.due).getTime(),
+      )[0];
+      map.set(cid, {
+        trend,
+        avg,
+        letter: avg != null ? letterFromPercent(avg) : null,
+        next: up ? { title: up.title, ...dueInfo(up.due) } : null,
+      });
+    }
+    return map;
+  }, [feed]);
+
   const filtered = (memberships ?? []).filter((m) => {
     if (filter === "Active") return m.status === "ACTIVE";
     if (filter === "Pending") return m.status === "PENDING";
     return true;
   });
+
+  const activeCount = (memberships ?? []).filter((m) => m.status === "ACTIVE").length;
 
   return (
     <StudentShell active="classes">
@@ -63,7 +136,7 @@ export default function ClassesPage() {
               ? "Loading…"
               : memberships.length === 0
                 ? "No classes yet — join one with a code from your teacher."
-                : `${memberships.length} ${memberships.length === 1 ? "class" : "classes"} · spring term`}
+                : `${activeCount} active · ${memberships.length} total`}
           </p>
         </div>
         <button className="btn" onClick={() => setShowJoin(true)}>
@@ -90,49 +163,72 @@ export default function ClassesPage() {
       )}
 
       {filtered.length > 0 && (
-        <div className="dgrid d-2">
-          {filtered.map((m) => {
+        <div className="dgrid d-2 stagger">
+          {filtered.map((m, i) => {
             const color = subjectColor(m.class.id);
             const active = m.status === "ACTIVE";
+            const s = stats.get(m.class.id);
+            const trendUp = s && s.trend.length >= 2 ? s.trend[s.trend.length - 1] - s.trend[0] : null;
             return (
               <div
                 key={m.id}
-                className={"classcard" + (active ? " link" : "")}
+                className={"classcard reveal" + (active ? " link" : "")}
                 style={{ ["--c" as string]: color, opacity: active ? 1 : 0.72 }}
                 onClick={active ? () => router.push(`/classes/${m.class.id}`) : undefined}
               >
-                <div className="ch">
-                  <div>
-                    <div className="cname">{m.class.name}</div>
-                    <div className="cteach">
+                <div className="cc-main">
+                  <RadialGauge
+                    pct={s?.avg ?? 0}
+                    size={84}
+                    stroke={8}
+                    color={active ? color : "var(--ink-faint)"}
+                    delay={i * 60 + 150}
+                  >
+                    <div className="ring-letter" style={{ color, fontSize: 20 }}>
+                      {s?.letter ?? "—"}
+                    </div>
+                  </RadialGauge>
+                  <div className="cc-body">
+                    <div className="cc-name">{m.class.name}</div>
+                    <div className="cc-teach">
                       {m.class.owner.name ?? "Teacher"} · {m.class._count.lessons} lessons
                     </div>
+                    {s && s.trend.length >= 2 ? (
+                      <div className="cc-spark">
+                        <MiniSpark data={s.trend} w={108} h={28} color={color} />
+                        {trendUp != null && (
+                          <span
+                            className="cc-trend"
+                            style={{ color: trendUp >= 0 ? "var(--good)" : "var(--danger)" }}
+                          >
+                            {trendUp >= 0 ? "+" : ""}
+                            {trendUp}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="cc-spark">
+                        <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-faint)" }}>
+                          {active ? "no grades yet" : "pending approval"}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  {active ? (
-                    <span className="stag">
-                      <span className="sdot" style={{ background: color }} /> enrolled
-                    </span>
-                  ) : (
-                    <span className="stag" style={{ color: "var(--accent)", borderColor: "var(--accent-line)" }}>
-                      pending
-                    </span>
-                  )}
                 </div>
-                {m.class.description && (
-                  <div className="crow" style={{ color: "var(--ink-2)" }}>
-                    {m.class.description}
-                  </div>
-                )}
-                {active && (
-                  <div className="crow" style={{ marginTop: 12, justifyContent: "space-between" }}>
-                    <span className="stag" style={{ borderColor: "var(--stroke)" }}>
-                      open class
-                    </span>
-                    <span style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--accent)" }}>
-                      <StudentIcon name="arrow" size={13} />
-                    </span>
-                  </div>
-                )}
+                <div className="cc-foot">
+                  <span className="stag">
+                    <span className="sdot" style={{ background: active ? color : "var(--ink-faint)" }} />
+                    {active ? (s?.next ? `next: ${s.next.title}` : "all caught up") : "awaiting teacher"}
+                  </span>
+                  <span
+                    className="cc-due"
+                    style={{
+                      color: s?.next?.state === "today" || s?.next?.state === "over" ? "var(--accent)" : "var(--ink-dim)",
+                    }}
+                  >
+                    {active ? s?.next?.label ?? "—" : "pending"}
+                  </span>
+                </div>
               </div>
             );
           })}

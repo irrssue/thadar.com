@@ -91,7 +91,7 @@ export default function InboxPage() {
         ))}
       </div>
 
-      <div>
+      <div className="stagger">
         {mail !== null && mail.length === 0 && (
           <div className="card" style={{ textAlign: "center", color: "var(--ink-dim)", padding: "32px 24px" }}>
             Nothing here yet.

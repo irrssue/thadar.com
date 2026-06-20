@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StudentShell from "../components/student/StudentShell";
 import { subjectColor } from "../components/student/subject";
 import { dueInfo } from "../components/student/dates";
+import { Donut, VBars, CountUp, type Bar } from "../components/student/charts";
 
 type Submission = {
   id: string;
@@ -32,6 +33,10 @@ const FILTERS = [
 ] as const;
 
 type FilterKey = (typeof FILTERS)[number][0];
+
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
 
 export default function AssignmentsPage() {
   const [feed, setFeed] = useState<FeedItem[] | null>(null);
@@ -65,8 +70,33 @@ export default function AssignmentsPage() {
     }
   });
 
-  const overdue = (feed ?? []).filter((t) => !t.submission && dueInfo(t.dueAt).state === "over").length;
-  const todayN = (feed ?? []).filter((t) => !t.submission && dueInfo(t.dueAt).state === "today").length;
+  const overview = useMemo(() => {
+    const items = feed ?? [];
+    const done = items.filter((t) => !!t.submission).length;
+    const open = items.length - done;
+    const overdue = items.filter((t) => !t.submission && dueInfo(t.dueAt).state === "over").length;
+    const todayN = items.filter((t) => !t.submission && dueInfo(t.dueAt).state === "today").length;
+
+    // workload across the next 5 days (open assignments, by due day)
+    const today = startOfDay(new Date());
+    const workload: Bar[] = [];
+    for (let i = 0; i < 5; i++) {
+      const day = today + i * 86_400_000;
+      const count = items.filter(
+        (t) => !t.submission && t.dueAt && startOfDay(new Date(t.dueAt)) === day,
+      ).length;
+      workload.push({
+        label: new Date(day).toLocaleDateString(undefined, { weekday: "short" }),
+        value: count,
+        color: i === 0 ? "var(--accent)" : "var(--accent-line)",
+      });
+    }
+
+    return { done, open, overdue, todayN, workload, total: items.length };
+  }, [feed]);
+
+  const { done, open, overdue, todayN, workload, total } = overview;
+  const onTrack = done + open > 0 ? Math.round((done / (done + open)) * 100) : 0;
 
   return (
     <StudentShell active="assign">
@@ -78,12 +108,52 @@ export default function AssignmentsPage() {
           <p className="dsub">
             {feed === null
               ? "Loading…"
-              : `${feed.length} total · ${todayN} due today · ${overdue} overdue`}
+              : `${total} total · ${todayN} due today · ${overdue} overdue`}
           </p>
         </div>
       </div>
 
-      <div className="filterbar">
+      {/* overview graphics */}
+      {feed !== null && total > 0 && (
+        <div className="dgrid g-assign reveal" style={{ marginBottom: "var(--gap)" }}>
+          <div className="card mini-stat">
+            <Donut
+              segments={[
+                { value: done, color: "var(--good)" },
+                { value: open, color: "var(--accent)" },
+              ]}
+              size={120}
+              stroke={14}
+            >
+              <div className="gauge-num" style={{ fontSize: 24 }}>
+                <CountUp to={onTrack} suffix="%" />
+              </div>
+              <div className="gauge-lab">on track</div>
+            </Donut>
+            <div className="mini-stat-legend">
+              <div className="leg-row">
+                <span className="sdot" style={{ background: "var(--good)" }} />
+                <span className="leg-l">Done</span>
+                <span className="leg-v">{done}</span>
+              </div>
+              <div className="leg-row">
+                <span className="sdot" style={{ background: "var(--accent)" }} />
+                <span className="leg-l">Open</span>
+                <span className="leg-v">{open}</span>
+              </div>
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-hd">
+              <span className="tile-eyebrow">Workload · next 5 days</span>
+              <span className="card-hd-r">open by due date</span>
+            </div>
+            <VBars h={132} showVal data={workload} />
+          </div>
+        </div>
+      )}
+
+      <div className="filterbar reveal" style={{ animationDelay: "70ms" }}>
         {FILTERS.map(([k, l]) => (
           <button key={k} className={"fpill " + (filter === k ? "on" : "")} onClick={() => setFilter(k)}>
             {l}
@@ -91,22 +161,22 @@ export default function AssignmentsPage() {
         ))}
       </div>
 
-      <div className="card">
+      <div className="card reveal" style={{ animationDelay: "110ms" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {list.map((t) => {
-            const done = !!t.submission;
+            const isDone = !!t.submission;
             const graded = t.submission?.status !== "SUBMITTED" && t.submission?.grade;
             const d = dueInfo(t.dueAt);
             return (
               <button key={t.id} className="task" style={{ padding: "13px 12px" }} onClick={() => setActive(t)}>
                 <div
                   className="cbox"
-                  style={done ? { background: "var(--accent)", borderColor: "var(--accent)" } : {}}
+                  style={isDone ? { background: "var(--accent)", borderColor: "var(--accent)" } : {}}
                 />
                 <div className="body">
                   <div
                     className="ti"
-                    style={done ? { color: "var(--ink-faint)", textDecoration: "line-through" } : { fontSize: 16 }}
+                    style={isDone ? { color: "var(--ink-faint)", textDecoration: "line-through" } : { fontSize: 16 }}
                   >
                     {t.title}
                   </div>
@@ -118,10 +188,10 @@ export default function AssignmentsPage() {
                 <span
                   className={
                     "due-chip " +
-                    (done ? "done" : d.state === "today" ? "today" : d.state === "over" ? "over" : "")
+                    (isDone ? "done" : d.state === "today" ? "today" : d.state === "over" ? "over" : "")
                   }
                 >
-                  {graded ? t.submission!.grade : done ? "Submitted" : d.label}
+                  {graded ? t.submission!.grade : isDone ? "Submitted" : d.label}
                 </span>
               </button>
             );

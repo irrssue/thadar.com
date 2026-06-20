@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import StudentShell from "../components/student/StudentShell";
 import { initials } from "../components/student/subject";
+import { RadialGauge, Heatmap, CountUp } from "../components/student/charts";
+import { gradePercent, gpaFromPercents } from "../components/student/grades";
 
 type Me = {
   id: string;
@@ -14,28 +16,104 @@ type Me = {
   counts: { teaching: number; enrolled: number; submissions: number };
 };
 
+type Submission = {
+  id: string;
+  status: "SUBMITTED" | "GRADED" | "RETURNED";
+  grade: string | null;
+  submittedAt: string;
+};
+
+type FeedItem = {
+  id: string;
+  dueAt: string | null;
+  submission: Submission | null;
+};
+
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
+
+// neutral → green ramp for the submission-activity heatmap (value 0..3)
+const ACTIVITY_COLORS = [
+  "transparent",
+  "var(--gauge-track)",
+  "color-mix(in srgb, var(--good) 32%, transparent)",
+  "color-mix(in srgb, var(--good) 62%, transparent)",
+  "var(--good)",
+];
+
+function dayKey(t: number): string {
+  const d = new Date(t);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
   const [me, setMe] = useState<Me | null>(null);
+  const [feed, setFeed] = useState<FeedItem[]>([]);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
-    const res = await fetch("/api/me", { cache: "no-store" });
-    const json: ApiResponse<Me> = await res.json();
-    if (json.success) {
-      setMe(json.data);
-      setName(json.data.name ?? "");
+    const [mRes, aRes] = await Promise.all([
+      fetch("/api/me", { cache: "no-store" }),
+      fetch("/api/assignments", { cache: "no-store" }),
+    ]);
+    const mJson: ApiResponse<Me> = await mRes.json();
+    const aJson: ApiResponse<FeedItem[]> = await aRes.json();
+    if (mJson.success) {
+      setMe(mJson.data);
+      setName(mJson.data.name ?? "");
     }
+    if (aJson.success) setFeed(aJson.data);
   }
 
   useEffect(() => {
     load();
   }, []);
+
+  const metrics = useMemo(() => {
+    const percents: number[] = [];
+    let submittedWithDue = 0;
+    let onTimeCount = 0;
+    const done = feed.filter((f) => !!f.submission).length;
+    const byDay = new Map<string, number>();
+    for (const f of feed) {
+      const s = f.submission;
+      if (!s) continue;
+      if (s.status !== "SUBMITTED" && s.grade) {
+        const p = gradePercent(s.grade);
+        if (p != null) percents.push(p);
+      }
+      byDay.set(dayKey(new Date(s.submittedAt).getTime()), (byDay.get(dayKey(new Date(s.submittedAt).getTime())) ?? 0) + 1);
+      if (f.dueAt) {
+        submittedWithDue++;
+        if (new Date(s.submittedAt).getTime() <= new Date(f.dueAt).getTime()) onTimeCount++;
+      }
+    }
+    const gpa = gpaFromPercents(percents);
+    const onTime = submittedWithDue > 0 ? Math.round((onTimeCount / submittedWithDue) * 100) : null;
+    const completion = feed.length > 0 ? Math.round((done / feed.length) * 100) : null;
+
+    // 12-week × Mon–Fri submission-activity heatmap
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const dow = (now.getDay() + 6) % 7; // 0 = Monday
+    const mondayThisWeek = todayStart - dow * 86_400_000;
+    const startMonday = mondayThisWeek - 11 * 7 * 86_400_000;
+    const level = (n: number) => (n <= 0 ? 0 : n === 1 ? 1 : n === 2 ? 2 : 3);
+    const weeks: number[][] = [];
+    for (let w = 0; w < 12; w++) {
+      const col: number[] = [];
+      for (let d = 0; d < 5; d++) {
+        const t = startMonday + (w * 7 + d) * 86_400_000;
+        col.push(level(byDay.get(dayKey(t)) ?? 0));
+      }
+      weeks.push(col);
+    }
+
+    return { gpa, onTime, completion, weeks, hasActivity: byDay.size > 0 };
+  }, [feed]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
@@ -63,26 +141,18 @@ export default function ProfilePage() {
 
   const displayName = me?.name ?? session?.user?.name ?? "Student";
   const email = me?.email ?? session?.user?.email ?? "";
-
-  const stats: [string, string][] = me
-    ? [
-        ["Classes", String(me.counts.enrolled)],
-        ["Submissions", String(me.counts.submissions)],
-        ["Teaching", String(me.counts.teaching)],
-        ["Email", me.emailVerified ? "✓" : "—"],
-      ]
-    : [];
+  const { gpa, onTime, completion, weeks, hasActivity } = metrics;
 
   const prefs: [string, string][] = [
     ["Display name", displayName],
     ["Email", email],
     ["Email status", me?.emailVerified ? "verified ✓" : "unverified"],
-    ["Theme", "Dark · warm"],
+    ["Theme", "Use the sidebar toggle"],
   ];
 
   return (
     <StudentShell active="profile">
-      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 30, flexWrap: "wrap" }}>
+      <div className="prof-hd reveal">
         <span className="av" style={{ width: 72, height: 72, fontSize: 24 }}>
           {initials(displayName)}
         </span>
@@ -97,18 +167,70 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      {me && (
-        <div className="statgrid" style={{ marginBottom: "var(--gap)" }}>
-          {stats.map(([l, v]) => (
-            <div key={l} className="stat">
-              <div className="sl">{l}</div>
-              <div className="sv">{v}</div>
+      {/* rings + activity */}
+      <div className="dgrid g-prof reveal" style={{ animationDelay: "60ms", marginBottom: "var(--gap)" }}>
+        <div className="card prof-rings">
+          <RadialGauge pct={gpa != null ? (gpa / 4) * 100 : 0} size={120} stroke={11} color="var(--c-1)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {gpa != null ? <CountUp to={gpa} dec={1} /> : "—"}
             </div>
-          ))}
+            <div className="gauge-lab">GPA</div>
+          </RadialGauge>
+          <RadialGauge pct={onTime ?? 0} size={120} stroke={11} color="var(--accent)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {onTime != null ? <CountUp to={onTime} suffix="%" /> : "—"}
+            </div>
+            <div className="gauge-lab">on-time</div>
+          </RadialGauge>
+          <RadialGauge pct={completion ?? 0} size={120} stroke={11} color="var(--good)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {completion != null ? <CountUp to={completion} suffix="%" /> : "—"}
+            </div>
+            <div className="gauge-lab">done</div>
+          </RadialGauge>
+        </div>
+        <div className="card">
+          <div className="card-hd">
+            <span className="tile-eyebrow">Submission activity · 12 weeks</span>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Heatmap weeks={weeks} colors={ACTIVITY_COLORS} />
+          </div>
+          {!hasActivity && (
+            <div className="empty" style={{ marginTop: 12 }}>
+              Submit some work and your activity will light up here.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* stat grid */}
+      {me && (
+        <div className="statgrid reveal" style={{ animationDelay: "120ms", marginBottom: "var(--gap)" }}>
+          <div className="stat">
+            <div className="sl">GPA</div>
+            <div className="sv">{gpa != null ? <CountUp to={gpa} dec={2} /> : "—"}</div>
+          </div>
+          <div className="stat">
+            <div className="sl">Classes</div>
+            <div className="sv">
+              <CountUp to={me.counts.enrolled} />
+            </div>
+          </div>
+          <div className="stat">
+            <div className="sl">Submissions</div>
+            <div className="sv">
+              <CountUp to={me.counts.submissions} />
+            </div>
+          </div>
+          <div className="stat">
+            <div className="sl">On-time</div>
+            <div className="sv">{onTime != null ? <CountUp to={onTime} suffix="%" /> : "—"}</div>
+          </div>
         </div>
       )}
 
-      <div className="card">
+      <div className="card reveal" style={{ animationDelay: "160ms" }}>
         <div className="tile-eyebrow" style={{ marginBottom: 6 }}>
           Preferences
         </div>
