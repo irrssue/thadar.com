@@ -1,112 +1,147 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Icon from "../../components/Icon";
-import { PillStub, Btn, CommandBar } from "../components/primitives";
+import { RadialGauge, MiniSpark, useEnter } from "../../components/student/charts";
+import { type Overview, classMetrics } from "../../components/teacher/metrics";
 
-type ClassRow = {
-  id: string;
-  name: string;
-  description: string | null;
-  inviteCode: string | null;
-  inviteCodeEnabled: boolean;
-  createdAt: string;
-  _count: { memberships: number };
-};
-
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
+type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
 export default function TeacherClasses() {
-  const [classes, setClasses] = useState<ClassRow[] | null>(null);
+  const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   async function load() {
     setError(null);
-    const res = await fetch("/api/classes", { cache: "no-store" });
-    const json: ApiResponse<ClassRow[]> = await res.json();
+    const res = await fetch("/api/teacher/overview", { cache: "no-store" });
+    const json: ApiResponse<Overview> = await res.json();
     if (!json.success) {
       setError(json.error);
       return;
     }
-    setClasses(json.data);
+    setData(json.data);
   }
 
   useEffect(() => {
     load();
   }, []);
 
+  const metrics = useMemo(() => (data ? data.classes.map(classMetrics) : null), [data]);
+
   return (
     <>
-      <h1 style={{ fontWeight: 700, fontSize: 52, margin: "16px 0 4px", letterSpacing: "-0.5px" }}>
-        Your <span style={{ color: "var(--accent)" }}>classes</span>
-      </h1>
-      <p style={{ color: "var(--ink-dim)", fontSize: 18, margin: "0 0 28px", fontWeight: 300 }}>
-        {classes ? `${classes.length} ${classes.length === 1 ? "class" : "classes"}` : "Loading…"}
-      </p>
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap", alignItems: "center" }}>
-        <PillStub variant="active">All</PillStub>
-        <Btn variant="primary" style={{ marginLeft: "auto" }} onClick={() => setShowModal(true)}>
-          <Icon name="plus" size={14} /> New class
-        </Btn>
+      <div className="dh">
+        <div>
+          <h1>
+            Your <span className="var">classes</span>
+          </h1>
+          <p className="dsub" style={{ margin: "6px 0 0" }}>
+            {data
+              ? `${data.totals.classes} ${data.totals.classes === 1 ? "section" : "sections"} · ${data.totals.students} students`
+              : "Loading…"}
+          </p>
+        </div>
+        <button className="btn primary" onClick={() => setShowModal(true)}>
+          <Icon name="plus" size={15} /> New class
+        </button>
       </div>
+      <div style={{ height: 24 }} />
 
-      {error && (
-        <div style={{ color: "var(--danger)", marginBottom: 16 }}>{error}</div>
+      {error && <div style={{ color: "var(--danger)", marginBottom: 16 }}>{error}</div>}
+
+      {metrics && metrics.length === 0 && (
+        <div className="card" style={{ textAlign: "center", padding: "44px 24px" }}>
+          <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 8 }}>No classes yet</div>
+          <div className="empty" style={{ marginBottom: 18 }}>
+            Create your first class to get started.
+          </div>
+          <button className="btn primary" style={{ margin: "0 auto" }} onClick={() => setShowModal(true)}>
+            <Icon name="plus" size={15} /> New class
+          </button>
+        </div>
       )}
 
-      {classes && classes.length === 0 && <EmptyState onCreate={() => setShowModal(true)} />}
-
-      {classes && classes.length > 0 && (
-        <div
-          style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}
-          className="teacher-two-col"
-        >
-          {classes.map((c) => (
+      <div className="dgrid d-2 stagger">
+        {metrics?.map((c, i) => {
+          const delta = c.trend.length > 1 ? c.trend[c.trend.length - 1] - c.trend[0] : 0;
+          return (
             <Link
               key={c.id}
               href={`/teacher/classes/${c.id}`}
-              style={{
-                position: "relative",
-                border: "1.5px dashed var(--stroke)",
-                borderRadius: 14,
-                background: "var(--surface)",
-                padding: "18px 20px",
-                display: "flex",
-                flexDirection: "column",
-                gap: 10,
-                textDecoration: "none",
-                color: "inherit",
-              }}
+              className="classcard link reveal"
+              style={{ ["--c" as string]: c.color, animationDelay: `${i * 60}ms` }}
             >
-              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                <div style={{ fontSize: 22, fontWeight: 700 }}>{c.name}</div>
-                <div style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 11,
-                  color: "var(--ink-dim)",
-                  letterSpacing: 1,
-                  textTransform: "uppercase",
-                }}>
-                  {c.inviteCode && c.inviteCodeEnabled ? c.inviteCode : "No code"}
+              <div className="cc-main">
+                <RadialGauge pct={c.mastery ?? 0} size={84} stroke={8} color={c.color} delay={i * 60 + 150}>
+                  <div className="ring-letter" style={{ color: c.color, fontSize: 22 }}>
+                    {c.letter ?? "—"}
+                  </div>
+                  <div className="ring-pct">mastery</div>
+                </RadialGauge>
+                <div className="cc-body">
+                  <div className="cc-name">{c.name}</div>
+                  <div className="cc-teach">
+                    {c.activeCount} students · {c.graded} graded
+                  </div>
+                  <div className="cc-spark">
+                    {c.trend.length > 1 ? (
+                      <>
+                        <MiniSpark data={c.trend} w={108} h={28} color={c.color} />
+                        <span className="cc-trend" style={{ color: delta >= 0 ? "var(--good)" : "var(--danger)" }}>
+                          {delta >= 0 ? "+" : ""}
+                          {delta}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="empty" style={{ padding: 0 }}>
+                        no grades yet
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
-              {c.description && (
-                <div style={{ color: "var(--ink-dim)", fontSize: 14, fontWeight: 300 }}>
-                  {c.description}
+
+              <div className="cc-classmeta">
+                <div className="cm">
+                  <span className="cm-n" style={{ color: c.toGrade ? "var(--accent)" : "var(--ink-dim)" }}>
+                    {c.toGrade}
+                  </span>
+                  <span className="cm-l">to grade</span>
                 </div>
-              )}
-              <div style={{ display: "flex", gap: 14, color: "var(--ink-dim)", fontSize: 14, fontWeight: 300 }}>
-                <span><strong style={{ color: "var(--ink)", fontWeight: 700 }}>{c._count.memberships}</strong> students</span>
+                <div className="cm">
+                  <span className="cm-n" style={{ color: c.missing ? "var(--danger)" : "var(--ink-dim)" }}>
+                    {c.missing}
+                  </span>
+                  <span className="cm-l">missing</span>
+                </div>
+                <div className="cm">
+                  <span className="cm-n">{c.activeCount}</span>
+                  <span className="cm-l">students</span>
+                </div>
+              </div>
+
+              {c.strip.length > 0 && <SubStrip cells={c.strip} color={c.color} />}
+
+              <div className="cc-foot">
+                {c.nextDue ? (
+                  <span className="stag">
+                    <span className="sdot" style={{ background: c.color }} /> next: {c.nextDue.title}
+                  </span>
+                ) : (
+                  <span className="stag">
+                    <span className="sdot" style={{ background: c.color }} /> no upcoming due
+                  </span>
+                )}
+                <span className="cc-due" style={{ color: dueColor(c.nextDue?.dueAt) }}>
+                  {c.nextDue ? dueLabel(c.nextDue.dueAt) : "—"}
+                </span>
               </div>
             </Link>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {showModal && (
         <NewClassModal
@@ -117,39 +152,49 @@ export default function TeacherClasses() {
           }}
         />
       )}
-
-      <CommandBar />
     </>
   );
 }
 
-function EmptyState({ onCreate }: { onCreate: () => void }) {
+function SubStrip({ cells, color }: { cells: number[]; color: string }) {
+  const on = useEnter();
+  const pal: Record<number, string> = {
+    0: "var(--gauge-track)",
+    1: "var(--danger)",
+    2: color,
+    3: "var(--good)",
+  };
   return (
-    <div style={{
-      border: "1.5px dashed var(--stroke)",
-      borderRadius: 14,
-      padding: "48px 24px",
-      textAlign: "center",
-      background: "var(--surface)",
-    }}>
-      <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 8 }}>No classes yet</div>
-      <div style={{ color: "var(--ink-dim)", marginBottom: 20 }}>
-        Create your first class to get started.
-      </div>
-      <Btn variant="primary" onClick={onCreate}>
-        <Icon name="plus" size={14} /> New class
-      </Btn>
+    <div className="substrip">
+      {cells.map((v, i) => (
+        <div
+          key={i}
+          className="subcell"
+          style={{
+            background: pal[v],
+            opacity: on ? (v === 2 ? 0.7 : v === 0 ? 1 : 0.85) : 0,
+            transitionDelay: `${i * 14}ms`,
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-function NewClassModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: () => void;
-}) {
+function dueLabel(iso: string): string {
+  const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  if (days <= 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  if (days < 7) return new Date(iso).toLocaleDateString(undefined, { weekday: "short" });
+  return new Date(iso).toLocaleDateString();
+}
+function dueColor(iso: string | undefined): string {
+  if (!iso) return "var(--ink-dim)";
+  const days = Math.round((new Date(iso).getTime() - Date.now()) / 86_400_000);
+  return days <= 1 ? "var(--accent)" : "var(--ink-dim)";
+}
+
+function NewClassModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -164,10 +209,7 @@ function NewClassModal({
       const res = await fetch("/api/classes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          description: description.trim() || undefined,
-        }),
+        body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
       });
       const json: ApiResponse<unknown> = await res.json();
       if (!json.success) {
@@ -181,76 +223,23 @@ function NewClassModal({
   }
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.55)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
-    >
-      <form
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={submit}
-        style={{
-          background: "var(--surface)",
-          border: "1.5px solid var(--stroke)",
-          borderRadius: 14,
-          padding: 24,
-          width: "min(480px, 92vw)",
-          display: "flex",
-          flexDirection: "column",
-          gap: 14,
-        }}
-      >
-        <div style={{ fontSize: 22, fontWeight: 700 }}>New class</div>
-
+    <div onClick={onClose} style={overlayStyle}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{ ...modalStyle, width: "min(480px, 92vw)" }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>New class</div>
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>Name</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            autoFocus
-            required
-            maxLength={120}
-            placeholder="e.g. Math 10 — Algebra II"
-            style={inputStyle}
-          />
+          <input value={name} onChange={(e) => setName(e.target.value)} autoFocus required maxLength={120} placeholder="e.g. Math 10 — Algebra II" style={inputStyle} />
         </label>
-
         <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           <span style={{ fontSize: 13, color: "var(--ink-dim)" }}>Description (optional)</span>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={2000}
-            rows={3}
-            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
-          />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={2000} rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-sans)" }} />
         </label>
-
         {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
-
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <Btn onClick={onClose}>Cancel</Btn>
-          <button
-            type="submit"
-            disabled={submitting || !name.trim()}
-            style={{
-              padding: "8px 14px",
-              borderRadius: 999,
-              border: "1.4px solid var(--accent)",
-              background: "var(--accent-soft)",
-              color: "var(--accent)",
-              fontSize: 15,
-              cursor: submitting ? "default" : "pointer",
-              opacity: submitting || !name.trim() ? 0.5 : 1,
-            }}
-          >
+          <button type="button" onClick={onClose} className="btn">
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting || !name.trim()} className="btn primary">
             {submitting ? "Creating…" : "Create class"}
           </button>
         </div>
@@ -259,12 +248,33 @@ function NewClassModal({
   );
 }
 
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.6)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100,
+  padding: 16,
+};
+const modalStyle: React.CSSProperties = {
+  background: "var(--bg-2)",
+  border: "1px solid var(--stroke-2)",
+  borderRadius: 17,
+  padding: 24,
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+  boxShadow: "0 30px 60px -20px rgba(0,0,0,0.8)",
+};
 const inputStyle: React.CSSProperties = {
   padding: "10px 12px",
-  borderRadius: 10,
-  border: "1.4px solid var(--stroke)",
-  background: "var(--bg)",
+  borderRadius: 11,
+  border: "1px solid var(--stroke-2)",
+  background: "var(--bg-2)",
   color: "var(--ink)",
   fontSize: 15,
   outline: "none",
+  fontFamily: "var(--font-sans)",
 };

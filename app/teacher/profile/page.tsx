@@ -1,8 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { WfBox, CornerTag, CommandBar } from "../components/primitives";
+import { RadialGauge, Heatmap, CountUp } from "../../components/student/charts";
+import { initials } from "../../components/student/subject";
+import {
+  type Overview,
+  roster,
+  avgMastery,
+  submissionRate,
+  avgTurnaround,
+  submissionHeatmap,
+} from "../../components/teacher/metrics";
 
 type Me = {
   id: string;
@@ -13,74 +22,188 @@ type Me = {
 };
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 
+// neutral → green ramp for the submission-activity heatmap (value 0..3)
+const ACTIVITY_COLORS = [
+  "transparent",
+  "var(--gauge-track)",
+  "color-mix(in srgb, var(--good) 32%, transparent)",
+  "color-mix(in srgb, var(--good) 62%, transparent)",
+  "var(--good)",
+];
+
 export default function TeacherProfile() {
   const { data: session, update } = useSession();
   const [me, setMe] = useState<Me | null>(null);
+  const [data, setData] = useState<Overview | null>(null);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function load() {
-    const res = await fetch("/api/me", { cache: "no-store" });
-    const json: ApiResponse<Me> = await res.json();
-    if (json.success) { setMe(json.data); setName(json.data.name ?? ""); }
+    const [mRes, oRes] = await Promise.all([
+      fetch("/api/me", { cache: "no-store" }),
+      fetch("/api/teacher/overview", { cache: "no-store" }),
+    ]);
+    const mJson: ApiResponse<Me> = await mRes.json();
+    const oJson: ApiResponse<Overview> = await oRes.json();
+    if (mJson.success) {
+      setMe(mJson.data);
+      setName(mJson.data.name ?? "");
+    }
+    if (oJson.success) setData(oJson.data);
   }
-  useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const metrics = useMemo(() => {
+    if (!data) return null;
+    const rows = roster(data.classes);
+    const mastery = avgMastery(rows);
+    const subRate = submissionRate(data.classes);
+    const turn = avgTurnaround(data.classes);
+    const { weeks, total } = submissionHeatmap(data.classes);
+    const publishedSets = data.classes.reduce(
+      (n, c) => n + c.assignments.filter((a) => a.status === "PUBLISHED").length,
+      0,
+    );
+    return { mastery, subRate, turn, weeks, hasActivity: total > 0, publishedSets, graded: data.totals.graded, studentsUnique: rows.length };
+  }, [data]);
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || saving) return;
-    setSaving(true); setErr(null);
+    setSaving(true);
+    setErr(null);
     try {
-      const res = await fetch("/api/me", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: name.trim() }) });
+      const res = await fetch("/api/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: name.trim() }),
+      });
       const json: ApiResponse<{ name: string }> = await res.json();
-      if (!json.success) { setErr(json.error); return; }
+      if (!json.success) {
+        setErr(json.error);
+        return;
+      }
       await update({ name: json.data.name });
-      setEditing(false); load();
-    } finally { setSaving(false); }
+      setEditing(false);
+      load();
+    } finally {
+      setSaving(false);
+    }
   }
 
   const displayName = me?.name ?? session?.user?.name ?? "Teacher";
   const email = me?.email ?? session?.user?.email ?? "";
-  const initials = displayName.split(" ").map((s) => s[0]).join("").slice(0, 2).toUpperCase();
 
-  const stats = me
-    ? [
-        { label: "classes teaching", value: String(me.counts.teaching) },
-        { label: "classes enrolled", value: String(me.counts.enrolled) },
-        { label: "submissions made", value: String(me.counts.submissions) },
-      ]
-    : [];
+  const prefs: [string, string][] = [
+    ["Display name", displayName],
+    ["Email", email],
+    ["Email status", me?.emailVerified ? "verified ✓" : "unverified"],
+    ["Theme", "Use the sidebar toggle"],
+  ];
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: 20, marginTop: 24, flexWrap: "wrap" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 999, background: "var(--accent-soft)", color: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: "var(--font-mono)", fontSize: 22, fontWeight: 600 }}>
-          {initials}
-        </div>
+      <div className="prof-hd reveal">
+        <span className="av" style={{ width: 72, height: 72, fontSize: 24 }}>
+          {initials(displayName, "T")}
+        </span>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <h1 style={{ fontWeight: 700, fontSize: 52, margin: 0, letterSpacing: "-0.5px" }}>{displayName}</h1>
-          <div style={{ color: "var(--ink-dim)", fontFamily: "var(--font-mono)", fontSize: 13 }}>{email}</div>
+          <h1 style={{ fontSize: 38, fontWeight: 700, margin: 0 }}>{displayName}</h1>
+          <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-dim)", marginTop: 6 }}>
+            teacher · {email}
+          </div>
         </div>
-        <button onClick={() => setEditing(true)} style={editBtn}>Edit profile</button>
+        <button className="btn" onClick={() => setEditing(true)}>
+          Edit profile
+        </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 20, marginTop: 30 }} className="teacher-stats-grid">
-        {stats.map((s) => (
-          <WfBox key={s.label} style={{ padding: 18 }}>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--ink-faint)", textTransform: "uppercase", letterSpacing: 1 }}>{s.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 700, marginTop: 6 }}>{s.value}</div>
-          </WfBox>
+      {/* rings + activity */}
+      <div className="dgrid g-prof reveal" style={{ animationDelay: "60ms", marginBottom: "var(--gap)" }}>
+        <div className="card prof-rings">
+          <RadialGauge pct={metrics?.mastery ?? 0} size={120} stroke={11} color="var(--accent)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {metrics?.mastery != null ? <CountUp to={metrics.mastery} suffix="%" /> : "—"}
+            </div>
+            <div className="gauge-lab">avg mastery</div>
+          </RadialGauge>
+          <RadialGauge pct={metrics?.subRate ?? 0} size={120} stroke={11} color="var(--good)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {metrics?.subRate != null ? <CountUp to={metrics.subRate} suffix="%" /> : "—"}
+            </div>
+            <div className="gauge-lab">submission</div>
+          </RadialGauge>
+          <RadialGauge pct={metrics?.turn != null ? Math.max(0, 100 - metrics.turn * 20) : 0} size={120} stroke={11} color="var(--c-1)">
+            <div className="gauge-num" style={{ fontSize: 24 }}>
+              {metrics?.turn != null ? <CountUp to={metrics.turn} dec={1} suffix="d" /> : "—"}
+            </div>
+            <div className="gauge-lab">turnaround</div>
+          </RadialGauge>
+        </div>
+        <div className="card">
+          <div className="card-hd">
+            <span className="tile-eyebrow">Submission activity · 12 weeks</span>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <Heatmap weeks={metrics?.weeks ?? []} colors={ACTIVITY_COLORS} />
+          </div>
+          {metrics && !metrics.hasActivity && (
+            <div className="empty" style={{ marginTop: 12 }}>
+              Submissions from your classes will light up here.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* stat grid */}
+      {me && data && (
+        <div className="statgrid reveal" style={{ animationDelay: "120ms", marginBottom: "var(--gap)" }}>
+          <div className="stat">
+            <div className="sl">Students</div>
+            <div className="sv">
+              <CountUp to={metrics?.studentsUnique ?? 0} />
+            </div>
+          </div>
+          <div className="stat">
+            <div className="sl">Active sets</div>
+            <div className="sv">
+              <CountUp to={metrics?.publishedSets ?? 0} />
+            </div>
+          </div>
+          <div className="stat">
+            <div className="sl">Graded</div>
+            <div className="sv">
+              <CountUp to={metrics?.graded ?? 0} />
+            </div>
+          </div>
+          <div className="stat">
+            <div className="sl">Avg turnaround</div>
+            <div className="sv">{metrics?.turn != null ? <CountUp to={metrics.turn} dec={1} suffix="d" /> : "—"}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="card reveal" style={{ animationDelay: "160ms" }}>
+        <div className="tile-eyebrow" style={{ marginBottom: 6 }}>
+          Preferences
+        </div>
+        {prefs.map(([l, v], i) => (
+          <div key={l} className="prefrow">
+            <span className="pl">{l}</span>
+            <span className="pv">{v}</span>
+            {i === 0 && (
+              <button className="btn" style={{ padding: "4px 12px", fontSize: 13 }} onClick={() => setEditing(true)}>
+                Edit
+              </button>
+            )}
+          </div>
         ))}
       </div>
-
-      <WfBox style={{ marginTop: 24 }}>
-        <CornerTag label="account" />
-        <div style={{ color: "var(--ink-dim)", fontSize: 14, marginTop: 4 }}>
-          {me?.emailVerified ? "Your email is verified." : "Your email isn't verified yet."}
-        </div>
-      </WfBox>
 
       {editing && (
         <div onClick={() => setEditing(false)} style={overlayStyle}>
@@ -96,25 +219,48 @@ export default function TeacherProfile() {
             </label>
             {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button type="button" onClick={() => setEditing(false)} style={ghostBtn}>Cancel</button>
-              <button type="submit" disabled={saving || !name.trim()} style={{ ...primaryBtn, opacity: saving || !name.trim() ? 0.5 : 1 }}>{saving ? "Saving…" : "Save"}</button>
+              <button type="button" onClick={() => setEditing(false)} className="btn">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving || !name.trim()} className="btn primary">
+                {saving ? "Saving…" : "Save"}
+              </button>
             </div>
           </form>
         </div>
       )}
-
-      <CommandBar />
-
-      <style>{`
-        @media (max-width: 880px) { .teacher-stats-grid { grid-template-columns: 1fr 1fr !important; } }
-      `}</style>
     </>
   );
 }
 
-const editBtn: React.CSSProperties = { padding: "8px 14px", borderRadius: 999, border: "1.2px solid var(--ink-faint)", background: "transparent", color: "var(--ink)", fontSize: 13, cursor: "pointer" };
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 };
-const modalStyle: React.CSSProperties = { background: "var(--surface)", border: "1.5px solid var(--stroke)", borderRadius: 14, padding: 24, width: "min(440px, 92vw)", display: "flex", flexDirection: "column", gap: 14 };
-const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.4px solid var(--stroke)", background: "var(--bg)", color: "var(--ink)", fontSize: 15, outline: "none" };
-const ghostBtn: React.CSSProperties = { padding: "8px 14px", borderRadius: 999, border: "1.4px solid var(--stroke)", background: "transparent", color: "var(--ink)", fontSize: 14, cursor: "pointer" };
-const primaryBtn: React.CSSProperties = { padding: "8px 16px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 14, cursor: "pointer" };
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.6)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100,
+  padding: 16,
+};
+const modalStyle: React.CSSProperties = {
+  background: "var(--bg-2)",
+  border: "1px solid var(--stroke-2)",
+  borderRadius: 17,
+  padding: 24,
+  width: "min(440px, 92vw)",
+  display: "flex",
+  flexDirection: "column",
+  gap: 14,
+  boxShadow: "0 30px 60px -20px rgba(0,0,0,0.8)",
+};
+const inputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 11,
+  border: "1px solid var(--stroke-2)",
+  background: "var(--bg-2)",
+  color: "var(--ink)",
+  fontSize: 15,
+  outline: "none",
+  fontFamily: "var(--font-sans)",
+};

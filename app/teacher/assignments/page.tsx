@@ -1,22 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { WfBox, CornerTag, PillStub, Row, Btn, CommandBar } from "../components/primitives";
+import Icon from "../../components/Icon";
+import { RadialGauge, AreaTrend, BarRow, CountUp } from "../../components/student/charts";
+import {
+  type Overview,
+  gradingQueue,
+  turnaroundTrend,
+  avgTurnaround,
+} from "../../components/teacher/metrics";
 
-type OverviewAssignment = { id: string; title: string; status: string; dueAt: string | null; _count: { submissions: number } };
-type OverviewClass = { id: string; name: string; assignments: OverviewAssignment[]; activeCount: number };
-type Overview = {
-  totals: { classes: number; students: number; pending: number; assignments: number; needsGrading: number };
-  classes: OverviewClass[];
-};
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
-
-type Filter = "All" | "Active" | "Draft";
 
 export default function TeacherAssignments() {
   const [data, setData] = useState<Overview | null>(null);
-  const [filter, setFilter] = useState<Filter>("All");
+  const [filter, setFilter] = useState<string>("all");
+  const [picking, setPicking] = useState(false);
   const [composeClass, setComposeClass] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -25,87 +25,191 @@ export default function TeacherAssignments() {
     if (json.success) setData(json.data);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const flat = (data?.classes ?? []).flatMap((c) =>
-    c.assignments
-      .filter((a) => (filter === "Active" ? a.status === "PUBLISHED" : filter === "Draft" ? a.status === "DRAFT" : true))
-      .map((a) => ({ ...a, className: c.name, classId: c.id })),
-  );
+  const d = useMemo(() => {
+    if (!data) return null;
+    const queue = gradingQueue(data.classes);
+    const turnaround = turnaroundTrend(data.classes);
+    const turn = avgTurnaround(data.classes);
+    const totalSubs = data.totals.graded + data.totals.toGrade;
+    const gradedPct = totalSubs > 0 ? Math.round((data.totals.graded / totalSubs) * 100) : 0;
+    const urgentSets = queue.filter((q) => q.urgent).length;
+    return { queue, turnaround, turn, gradedPct, urgentSets };
+  }, [data]);
+
+  const list = (d?.queue ?? []).filter((q) => filter === "all" || q.classId === filter);
 
   return (
     <>
-      <h1 style={{ fontWeight: 700, fontSize: 52, margin: "16px 0 4px", letterSpacing: "-0.5px" }}>
-        Your <span style={{ color: "var(--accent)" }}>assignments</span>
-      </h1>
-      <p style={{ color: "var(--ink-dim)", fontSize: 18, margin: "0 0 28px", fontWeight: 300 }}>
-        {data
-          ? `${data.totals.assignments} total · ${data.totals.needsGrading} with submissions`
-          : "Loading…"}
-      </p>
+      <div className="dh">
+        <div>
+          <h1>
+            To <span className="var">grade</span>
+          </h1>
+          <p className="dsub" style={{ margin: "6px 0 0" }}>
+            {data
+              ? `${data.totals.toGrade} submissions waiting · ${data.totals.graded} graded · ${data.totals.assignments} sets`
+              : "Loading…"}
+          </p>
+        </div>
+        <button className="btn primary" onClick={() => setPicking(true)} disabled={!data || data.classes.length === 0}>
+          <Icon name="plus" size={15} /> New assignment
+        </button>
+      </div>
+      <div style={{ height: 24 }} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1.4fr", gap: 28 }} className="teacher-split">
-        <WfBox>
-          <CornerTag label="all classes" />
-          <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
-            {(["All", "Active", "Draft"] as Filter[]).map((f) => (
-              <PillStub key={f} variant={filter === f ? "active" : "default"} onClick={() => setFilter(f)}>{f}</PillStub>
-            ))}
+      {/* analytics */}
+      <div className="dgrid g-hero reveal" style={{ marginBottom: "var(--gap)" }}>
+        <div className="card hero-gpa">
+          <RadialGauge pct={d?.gradedPct ?? 0} size={172} stroke={15} color="var(--accent)">
+            <div className="gauge-num">{d ? <CountUp to={d.gradedPct} suffix="%" /> : "—"}</div>
+            <div className="gauge-lab">graded</div>
+          </RadialGauge>
+          <div className="hero-gpa-meta">
+            <div className="delta up">{d?.turn != null ? <CountUp to={d.turn} dec={1} suffix="d" /> : "—"}</div>
+            <div className="muted">avg turnaround</div>
+            <div className="hero-tags">
+              <span className="stag">
+                <span className="sdot" style={{ background: "var(--danger)" }} /> {d?.urgentSets ?? 0} urgent sets
+              </span>
+              <span className="stag">
+                <span className="sdot" style={{ background: "var(--good)" }} /> {data?.totals.graded ?? 0} graded total
+              </span>
+            </div>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {!data && <Muted>Loading…</Muted>}
-            {data && flat.length === 0 && <Muted>No assignments. Create one from a class on the right.</Muted>}
-            {flat.map((a) => (
-              <Link key={a.id} href={`/teacher/classes/${a.classId}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <Row>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 17 }}>{a.title}</div>
-                    <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
-                      {a.className} · {a._count.submissions} submissions
-                    </div>
-                  </div>
-                  <PillStub variant={a.status === "PUBLISHED" ? "active" : "default"}>{a.status.toLowerCase()}</PillStub>
-                  {a.dueAt && (
-                    <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-faint)", marginLeft: 4 }}>
-                      {new Date(a.dueAt).toLocaleDateString()}
-                    </div>
-                  )}
-                </Row>
-              </Link>
-            ))}
+        </div>
+        <div className="card">
+          <div className="card-hd">
+            <span className="tile-eyebrow">Turnaround · last 6 weeks</span>
+            <span className="card-hd-r up">▼ faster is better</span>
           </div>
-        </WfBox>
-
-        <div style={{ position: "relative", border: "1.5px dashed var(--stroke)", borderRadius: 14, padding: "18px 20px" }}>
-          <CornerTag label="new assignment" />
-          <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 12 }}>Create assignment</div>
-          {!data || data.classes.length === 0 ? (
-            <Muted>Create a class first, then add assignments to it.</Muted>
-          ) : (
+          {d && d.turnaround.values.some((v) => v > 0) ? (
             <>
-              <p style={{ color: "var(--ink-dim)", fontSize: 14, marginTop: 0 }}>Pick a class to add an assignment to:</p>
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {data.classes.map((c) => (
-                  <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", border: "1.2px dashed var(--ink-faint)", borderRadius: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16 }}>{c.name}</div>
-                      <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>{c.activeCount} students · {c.assignments.length} assignments</div>
-                    </div>
-                    <Btn variant="primary" onClick={() => setComposeClass(c.id)}>＋ Add</Btn>
-                  </div>
+              <AreaTrend data={d.turnaround.values} h={172} color="var(--good)" />
+              <div className="axis">
+                {d.turnaround.labels.map((l, i) => (
+                  <span key={i}>{l}</span>
                 ))}
               </div>
             </>
+          ) : (
+            <div className="empty" style={{ marginTop: 20 }}>
+              Grade some work and your turnaround trend will appear here.
+            </div>
           )}
         </div>
       </div>
 
-      {composeClass && (
-        <ComposeAssignment classId={composeClass} onClose={() => setComposeClass(null)} onSaved={() => { setComposeClass(null); load(); }} />
-      )}
+      {/* filters */}
+      <div className="filterbar reveal" style={{ animationDelay: "70ms" }}>
+        <button className={"fpill " + (filter === "all" ? "on" : "")} onClick={() => setFilter("all")}>
+          All
+        </button>
+        {(data?.classes ?? []).map((c) => (
+          <button key={c.id} className={"fpill " + (filter === c.id ? "on" : "")} onClick={() => setFilter(c.id)}>
+            {c.name}
+          </button>
+        ))}
+      </div>
 
-      <CommandBar />
+      {/* queue */}
+      <div className="card reveal" style={{ animationDelay: "120ms" }}>
+        {!data && <div className="empty">Loading…</div>}
+        {data && list.length === 0 && (
+          <div className="empty">Nothing to grade in this view — you&apos;re caught up.</div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {list.map((q, i) => {
+            const pct = Math.round((q.done / q.total) * 100);
+            return (
+              <Link
+                key={q.id}
+                href={`/teacher/classes/${q.classId}`}
+                className="qrow"
+                style={{ textDecoration: "none" }}
+              >
+                <span className="cbox" />
+                <div className="qbody">
+                  <div className="qtitle">{q.title}</div>
+                  <div className="mt">
+                    <span className="sdot" style={{ background: q.color, width: 7, height: 7 }} />
+                    {q.className} · ~{q.mins}m
+                  </div>
+                </div>
+                <div className="qprog">
+                  <BarRow pct={pct} color={q.urgent ? "var(--danger)" : q.color} delay={i * 60} h={6} />
+                  <span className="qprog-n">
+                    {q.done}/{q.total}
+                  </span>
+                </div>
+                <span className={"due-chip " + (q.urgent ? "over" : "")}>{q.urgent ? "urgent" : "queued"}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {picking && data && (
+        <ClassPicker
+          classes={data.classes.map((c) => ({ id: c.id, name: c.name, students: c.activeCount, count: c.assignments.length }))}
+          onClose={() => setPicking(false)}
+          onPick={(id) => {
+            setPicking(false);
+            setComposeClass(id);
+          }}
+        />
+      )}
+      {composeClass && (
+        <ComposeAssignment
+          classId={composeClass}
+          onClose={() => setComposeClass(null)}
+          onSaved={() => {
+            setComposeClass(null);
+            load();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function ClassPicker({
+  classes,
+  onClose,
+  onPick,
+}: {
+  classes: { id: string; name: string; students: number; count: number }[];
+  onClose: () => void;
+  onPick: (id: string) => void;
+}) {
+  return (
+    <div onClick={onClose} style={overlayStyle}>
+      <div onClick={(e) => e.stopPropagation()} style={{ ...modalStyle, width: "min(520px, 94vw)" }}>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>New assignment</div>
+        <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>Pick a class to add it to.</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+          {classes.map((c) => (
+            <button key={c.id} className="task" style={{ gridTemplateColumns: "1fr auto" }} onClick={() => onPick(c.id)}>
+              <div className="body">
+                <div className="ti">{c.name}</div>
+                <div className="mt">
+                  {c.students} students · {c.count} assignments
+                </div>
+              </div>
+              <span className="due-chip today">＋ Add</span>
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} className="btn">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -118,7 +222,8 @@ function ComposeAssignment({ classId, onClose, onSaved }: { classId: string; onC
 
   async function save(publish: boolean) {
     if (!title.trim() || saving) return;
-    setSaving(true); setErr(null);
+    setSaving(true);
+    setErr(null);
     try {
       const res = await fetch(`/api/classes/${classId}/assignments`, {
         method: "POST",
@@ -131,9 +236,14 @@ function ComposeAssignment({ classId, onClose, onSaved }: { classId: string; onC
         }),
       });
       const json: ApiResponse<unknown> = await res.json();
-      if (!json.success) { setErr(json.error); return; }
+      if (!json.success) {
+        setErr(json.error);
+        return;
+      }
       onSaved();
-    } finally { setSaving(false); }
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -141,24 +251,52 @@ function ComposeAssignment({ classId, onClose, onSaved }: { classId: string; onC
       <div onClick={(e) => e.stopPropagation()} style={{ ...modalStyle, width: "min(640px, 94vw)" }}>
         <div style={{ fontSize: 20, fontWeight: 700 }}>New assignment</div>
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Title" required maxLength={160} autoFocus style={inputStyle} />
-        <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Instructions…" rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+        <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} placeholder="Instructions…" rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-sans)" }} />
         <input type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} style={inputStyle} />
         {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button type="button" onClick={onClose} style={ghostBtn}>Cancel</button>
-          <button type="button" onClick={() => save(false)} disabled={saving || !title.trim()} style={{ ...ghostBtn, opacity: saving || !title.trim() ? 0.5 : 1 }}>Save draft</button>
-          <button type="button" onClick={() => save(true)} disabled={saving || !title.trim()} style={{ ...primaryBtn, opacity: saving || !title.trim() ? 0.5 : 1 }}>Publish</button>
+          <button type="button" onClick={onClose} className="btn">
+            Cancel
+          </button>
+          <button type="button" onClick={() => save(false)} disabled={saving || !title.trim()} className="btn">
+            Save draft
+          </button>
+          <button type="button" onClick={() => save(true)} disabled={saving || !title.trim()} className="btn primary">
+            Publish
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function Muted({ children }: { children: React.ReactNode }) {
-  return <div style={{ color: "var(--ink-dim)", fontSize: 14, padding: "8px 0" }}>{children}</div>;
-}
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 };
-const modalStyle: React.CSSProperties = { background: "var(--surface)", border: "1.5px solid var(--stroke)", borderRadius: 14, padding: 24, display: "flex", flexDirection: "column", gap: 12 };
-const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.4px solid var(--stroke)", background: "var(--bg)", color: "var(--ink)", fontSize: 15, outline: "none" };
-const ghostBtn: React.CSSProperties = { padding: "8px 14px", borderRadius: 999, border: "1.4px solid var(--stroke)", background: "transparent", color: "var(--ink)", fontSize: 14, cursor: "pointer" };
-const primaryBtn: React.CSSProperties = { padding: "8px 16px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 14, cursor: "pointer" };
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.6)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100,
+  padding: 16,
+};
+const modalStyle: React.CSSProperties = {
+  background: "var(--bg-2)",
+  border: "1px solid var(--stroke-2)",
+  borderRadius: 17,
+  padding: 24,
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  boxShadow: "0 30px 60px -20px rgba(0,0,0,0.8)",
+};
+const inputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 11,
+  border: "1px solid var(--stroke-2)",
+  background: "var(--bg-2)",
+  color: "var(--ink)",
+  fontSize: 15,
+  outline: "none",
+  fontFamily: "var(--font-sans)",
+};

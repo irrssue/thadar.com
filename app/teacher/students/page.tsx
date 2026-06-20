@@ -1,20 +1,28 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { WfBox, PillStub, Avatar, CommandBar } from "../components/primitives";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Donut, VBars, MiniSpark, BarRow, CountUp } from "../../components/student/charts";
+import { initials } from "../../components/student/subject";
+import {
+  type Overview,
+  roster,
+  flagCounts,
+  masteryBands,
+} from "../../components/teacher/metrics";
 
-type Person = { id: string; name: string | null; email: string };
-type Member = { id: string; status: string; user: Person };
-type OverviewClass = { id: string; name: string; students: Member[]; pending: Member[]; activeCount: number; pendingCount: number };
-type Overview = {
-  totals: { classes: number; students: number; pending: number };
-  classes: OverviewClass[];
-};
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
+type FilterId = "all" | "support" | "stretch" | "late";
+
+const FILTERS: { id: FilterId; label: string }[] = [
+  { id: "all", label: "All students" },
+  { id: "support", label: "Needs support" },
+  { id: "stretch", label: "Stretch" },
+  { id: "late", label: "Has late work" },
+];
 
 export default function TeacherStudents() {
   const [data, setData] = useState<Overview | null>(null);
-  const [classFilter, setClassFilter] = useState<string>("all");
+  const [filter, setFilter] = useState<FilterId>("all");
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -23,7 +31,9 @@ export default function TeacherStudents() {
     if (json.success) setData(json.data);
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function decide(classId: string, mid: string, action: "approve" | "deny") {
     setBusy(mid);
@@ -34,84 +44,203 @@ export default function TeacherStudents() {
         body: JSON.stringify({ action }),
       });
       await load();
-    } finally { setBusy(null); }
-  }
-  async function remove(classId: string, mid: string) {
-    setBusy(mid);
-    try {
-      await fetch(`/api/classes/${classId}/members/${mid}`, { method: "DELETE" });
-      await load();
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   }
 
-  const classes = (data?.classes ?? []).filter((c) => classFilter === "all" || c.id === classFilter);
-  const allPending = (data?.classes ?? []).flatMap((c) => c.pending.map((p) => ({ ...p, classId: c.id, className: c.name })));
+  const d = useMemo(() => {
+    if (!data) return null;
+    const rows = roster(data.classes);
+    const flags = flagCounts(rows);
+    const bands = masteryBands(rows);
+    const pending = data.classes.flatMap((c) => c.pending.map((p) => ({ ...p, classId: c.id, className: c.name })));
+    return { rows, flags, bands, pending };
+  }, [data]);
+
+  const list = (d?.rows ?? []).filter((r) =>
+    filter === "all" ? true : filter === "late" ? r.late > 0 : r.flag === filter,
+  );
+
+  const donutSegments = d
+    ? [
+        { value: d.flags.onTrack, color: "var(--good)" },
+        { value: d.flags.support, color: "var(--danger)" },
+        { value: d.flags.stretch, color: "var(--accent)" },
+      ].filter((s) => s.value > 0)
+    : [];
 
   return (
     <>
-      <h1 style={{ fontWeight: 700, fontSize: 52, margin: "16px 0 4px", letterSpacing: "-0.5px" }}>
-        Your <span style={{ color: "var(--accent)" }}>students</span>
-      </h1>
-      <p style={{ color: "var(--ink-dim)", fontSize: 18, margin: "0 0 28px", fontWeight: 300 }}>
-        {data ? `${data.totals.students} across ${data.totals.classes} ${data.totals.classes === 1 ? "class" : "classes"} · ${data.totals.pending} pending` : "Loading…"}
-      </p>
+      <div className="dh">
+        <div>
+          <h1>
+            Your <span className="var">students</span>
+          </h1>
+          <p className="dsub" style={{ margin: "6px 0 0" }}>
+            {data
+              ? `${d?.rows.length ?? 0} across ${data.totals.classes} ${data.totals.classes === 1 ? "class" : "classes"} · ${data.totals.pending} pending`
+              : "Loading…"}
+          </p>
+        </div>
+      </div>
+      <div style={{ height: 24 }} />
 
-      {allPending.length > 0 && (
-        <WfBox style={{ marginBottom: 22 }}>
-          <div style={{ fontSize: 13, color: "var(--ink-dim)", fontFamily: "var(--font-mono)", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
-            Pending approvals ({allPending.length})
+      {/* pending approvals */}
+      {d && d.pending.length > 0 && (
+        <div className="card reveal" style={{ marginBottom: "var(--gap)" }}>
+          <div className="card-hd">
+            <span className="tile-eyebrow">Pending approvals · {d.pending.length}</span>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {allPending.map((p) => (
-              <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 12px", border: "1.2px dashed var(--accent)", borderRadius: 10 }}>
-                <Avatar name={p.user.name ?? p.user.email} size={32} />
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
+            {d.pending.map((p) => (
+              <div key={p.id} className="approw">
+                <span className="av-sm" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                  {initials(p.user.name ?? p.user.email)}
+                </span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16 }}>{p.user.name ?? p.user.email}</div>
-                  <div style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--font-mono)" }}>{p.className} · {p.user.email}</div>
+                  <div style={{ fontSize: 15 }}>{p.user.name ?? p.user.email}</div>
+                  <div style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--font-mono)" }}>
+                    {p.className} · {p.user.email}
+                  </div>
                 </div>
-                <button onClick={() => decide(p.classId, p.id, "approve")} disabled={busy === p.id} style={approveBtn}>Approve</button>
-                <button onClick={() => decide(p.classId, p.id, "deny")} disabled={busy === p.id} style={denyBtn}>Deny</button>
+                <button className="mini-act approve" disabled={busy === p.id} onClick={() => decide(p.classId, p.id, "approve")}>
+                  Approve
+                </button>
+                <button className="mini-act deny" disabled={busy === p.id} onClick={() => decide(p.classId, p.id, "deny")}>
+                  Deny
+                </button>
               </div>
             ))}
           </div>
-        </WfBox>
+        </div>
       )}
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
-        <PillStub variant={classFilter === "all" ? "active" : "default"} onClick={() => setClassFilter("all")}>All classes</PillStub>
-        {(data?.classes ?? []).map((c) => (
-          <PillStub key={c.id} variant={classFilter === c.id ? "active" : "default"} onClick={() => setClassFilter(c.id)}>{c.name}</PillStub>
+      {/* analytics */}
+      <div className="dgrid g-assign reveal" style={{ marginBottom: "var(--gap)" }}>
+        <div className="card mini-stat">
+          {donutSegments.length > 0 ? (
+            <Donut segments={donutSegments} size={132} stroke={16}>
+              <div className="gauge-num" style={{ fontSize: 26 }}>
+                <CountUp to={d?.rows.length ?? 0} />
+              </div>
+              <div className="gauge-lab">students</div>
+            </Donut>
+          ) : (
+            <div className="gauge" style={{ width: 132, height: 132 }}>
+              <div className="gauge-c">
+                <div className="gauge-num" style={{ fontSize: 26 }}>
+                  {d?.rows.length ?? "—"}
+                </div>
+                <div className="gauge-lab">students</div>
+              </div>
+            </div>
+          )}
+          <div className="mini-stat-legend">
+            <div className="leg-row">
+              <span className="sdot" style={{ background: "var(--good)" }} />
+              <span className="leg-l">On track</span>
+              <span className="leg-v">{d?.flags.onTrack ?? 0}</span>
+            </div>
+            <div className="leg-row">
+              <span className="sdot" style={{ background: "var(--danger)" }} />
+              <span className="leg-l">Support</span>
+              <span className="leg-v">{d?.flags.support ?? 0}</span>
+            </div>
+            <div className="leg-row">
+              <span className="sdot" style={{ background: "var(--accent)" }} />
+              <span className="leg-l">Stretch</span>
+              <span className="leg-v">{d?.flags.stretch ?? 0}</span>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="card-hd">
+            <span className="tile-eyebrow">Mastery distribution</span>
+            <span className="card-hd-r">{d?.flags.graded ?? 0} graded</span>
+          </div>
+          {d && d.bands.some((b) => b.value > 0) ? (
+            <VBars h={150} showVal data={d.bands} />
+          ) : (
+            <div className="empty" style={{ marginTop: 20 }}>
+              Grades will spread across mastery bands here once you&apos;ve marked work.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* filters */}
+      <div className="filterbar reveal" style={{ animationDelay: "70ms" }}>
+        {FILTERS.map((f) => (
+          <button key={f.id} className={"fpill " + (filter === f.id ? "on" : "")} onClick={() => setFilter(f.id)}>
+            {f.label}
+          </button>
         ))}
       </div>
 
-      {!data && <Muted>Loading…</Muted>}
-      {data && data.totals.students === 0 && <Muted>No students yet. Share an invite code from a class to get started.</Muted>}
-
-      {classes.map((c) => c.students.length > 0 && (
-        <WfBox key={c.id} style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>{c.name}</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {c.students.map((m) => (
-              <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "10px 12px", border: "1.2px dashed var(--ink-faint)", borderRadius: 10 }}>
-                <Avatar name={m.user.name ?? m.user.email} size={32} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 16 }}>{m.user.name ?? m.user.email}</div>
-                  <div style={{ fontSize: 11, color: "var(--ink-faint)", fontFamily: "var(--font-mono)" }}>{m.user.email}</div>
+      {/* roster */}
+      <div className="card reveal" style={{ animationDelay: "120ms" }}>
+        {!data && <div className="empty">Loading…</div>}
+        {data && list.length === 0 && <div className="empty">No students in this view yet.</div>}
+        {list.length > 0 && (
+          <>
+            <div className="roster-head">
+              <span>Student</span>
+              <span className="rcol">Trend</span>
+              <span className="rcol">Mastery</span>
+              <span className="rcol">Late</span>
+              <span>Flag</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column" }}>
+              {list.map((s, i) => (
+                <div key={s.id} className="roster-row">
+                  <div className="rstudent">
+                    <span
+                      className="av-sm"
+                      style={{ background: `color-mix(in srgb, ${s.color} 18%, transparent)`, color: s.color }}
+                    >
+                      {initials(s.name)}
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="rname">{s.name}</div>
+                      <div className="rid">{s.className}</div>
+                    </div>
+                  </div>
+                  <div className="rcol rtrend">
+                    {s.trend.length > 1 ? (
+                      <MiniSpark data={s.trend} w={70} h={26} color={s.flag === "support" ? "var(--danger)" : s.color} />
+                    ) : (
+                      <span style={{ color: "var(--ink-faint)" }}>—</span>
+                    )}
+                  </div>
+                  <div className="rcol rmastery">
+                    {s.mastery != null ? (
+                      <>
+                        <BarRow pct={s.mastery} color={s.mastery < 60 ? "var(--danger)" : s.color} delay={i * 40} />
+                        <span className="rmastery-n">{s.mastery}%</span>
+                      </>
+                    ) : (
+                      <span className="rmastery-n">—</span>
+                    )}
+                  </div>
+                  <div className="rcol rlate" style={{ color: s.late > 0 ? "var(--danger)" : "var(--ink-faint)" }}>
+                    {s.late > 0 ? `${s.late} late` : "—"}
+                  </div>
+                  <div className="rflag">
+                    {s.flag === "support" && <span className="due-chip over">support</span>}
+                    {s.flag === "stretch" && <span className="due-chip today">stretch</span>}
+                    {!s.flag && (
+                      <span style={{ color: "var(--ink-faint)", fontFamily: "var(--font-mono)", fontSize: 11 }}>
+                        {s.mastery == null ? "no grades" : "on track"}
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <button onClick={() => remove(c.id, m.id)} disabled={busy === m.id} style={denyBtn}>Remove</button>
-              </div>
-            ))}
-          </div>
-        </WfBox>
-      ))}
-
-      <CommandBar />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </>
   );
 }
-
-function Muted({ children }: { children: React.ReactNode }) {
-  return <div style={{ color: "var(--ink-dim)", fontSize: 14, padding: "8px 0" }}>{children}</div>;
-}
-const approveBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 13, cursor: "pointer" };
-const denyBtn: React.CSSProperties = { padding: "6px 14px", borderRadius: 999, border: "1.2px solid var(--danger)", background: "transparent", color: "var(--danger)", fontSize: 13, cursor: "pointer" };

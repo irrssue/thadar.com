@@ -10,11 +10,13 @@ import ViewSwitcher from "../../components/ViewSwitcher";
 const NAV_ITEMS = [
   { id: "home",     label: "Home",        href: "/teacher" },
   { id: "classes",  label: "Classes",     href: "/teacher/classes" },
-  { id: "assign",   label: "Assignments", href: "/teacher/assignments", badge: 4 },
+  { id: "assign",   label: "Assignments", href: "/teacher/assignments" },
   { id: "students", label: "Students",    href: "/teacher/students" },
-  { id: "inbox",    label: "Inbox",       href: "/teacher/inbox", badge: 2 },
+  { id: "inbox",    label: "Inbox",       href: "/teacher/inbox" },
   { id: "profile",  label: "Profile",     href: "/teacher/profile" },
 ];
+
+type Badges = { assign: number; inbox: number };
 
 const NAV_OPEN_KEY = "thadar-nav-open";
 
@@ -48,6 +50,7 @@ export default function TeacherNav() {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
   const [open, setOpen] = useState(true);
+  const [badges, setBadges] = useState<Badges>({ assign: 0, inbox: 0 });
 
   useEffect(() => {
     const saved = localStorage.getItem(NAV_OPEN_KEY);
@@ -58,6 +61,30 @@ export default function TeacherNav() {
     // No saved preference: keep the menu out of the way on phones, where the
     // nav is a full-screen overlay rather than a docked sidebar.
     if (window.innerWidth <= 768) setOpen(false);
+  }, []);
+
+  // Real badges: assignments awaiting a grade + unread inbox messages.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const [oRes, mRes] = await Promise.all([
+          fetch("/api/teacher/overview", { cache: "no-store" }),
+          fetch("/api/messages?box=inbox", { cache: "no-store" }),
+        ]);
+        const oJson = await oRes.json();
+        const mJson = await mRes.json();
+        if (!alive) return;
+        const assign = oJson.success ? (oJson.data.totals.toGrade as number) : 0;
+        const inbox = mJson.success ? (mJson.data.unread as number) : 0;
+        setBadges({ assign, inbox });
+      } catch {
+        /* badges are decorative — ignore fetch errors */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const toggleOpen = () =>
@@ -71,6 +98,9 @@ export default function TeacherNav() {
     NAV_ITEMS.find((i) =>
       i.href === "/teacher" ? pathname === "/teacher" : pathname.startsWith(i.href),
     )?.id ?? "home";
+
+  const badgeFor = (id: string) =>
+    id === "assign" ? badges.assign : id === "inbox" ? badges.inbox : 0;
 
   return (
     <>
@@ -169,6 +199,7 @@ export default function TeacherNav() {
         <nav style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           {NAV_ITEMS.map((item) => {
             const isActive = currentId === item.id;
+            const badge = badgeFor(item.id);
             return (
               <Link
                 key={item.id}
@@ -182,7 +213,7 @@ export default function TeacherNav() {
                   <Icon name={item.id} />
                 </span>
                 <span style={labelStyle}>{item.label}</span>
-                {item.badge ? (
+                {badge > 0 ? (
                   <span
                     style={{
                       marginLeft: "auto",
@@ -200,7 +231,7 @@ export default function TeacherNav() {
                       fontWeight: 600,
                     }}
                   >
-                    {item.badge}
+                    {badge}
                   </span>
                 ) : null}
               </Link>

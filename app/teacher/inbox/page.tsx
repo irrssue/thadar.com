@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Icon from "../../components/Icon";
-import { WfBox, PillStub, Avatar, Btn, CommandBar } from "../components/primitives";
+import { subjectColor, initials } from "../../components/student/subject";
 
 type Person = { id: string; name: string | null; email: string };
 type Mail = {
@@ -29,88 +29,131 @@ export default function TeacherInbox() {
   const [mail, setMail] = useState<Mail[] | null>(null);
   const [unread, setUnread] = useState(0);
   const [open, setOpen] = useState<Mail | null>(null);
-  const [compose, setCompose] = useState(false);
+  const [showCompose, setShowCompose] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch(`/api/messages?box=${box}`, { cache: "no-store" });
-    const json: ApiResponse<{ unread: number; messages: Mail[] }> = await res.json();
-    if (json.success) { setMail(json.data.messages); setUnread(json.data.unread); }
+    const json: ApiResponse<{ box: Box; unread: number; messages: Mail[] }> = await res.json();
+    if (json.success) {
+      setMail(json.data.messages);
+      setUnread(json.data.unread);
+    }
   }, [box]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function openMessage(m: Mail) {
     setOpen(m);
     if (box === "inbox" && !m.readAt) {
-      await fetch(`/api/messages/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ read: true }) });
+      await fetch(`/api/messages/${m.id}`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ read: true }),
+      });
       load();
     }
   }
+
   async function toggleStar(m: Mail) {
-    await fetch(`/api/messages/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ starred: !m.starred }) });
+    await fetch(`/api/messages/${m.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ starred: !m.starred }),
+    });
     load();
   }
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-        <h1 style={{ fontWeight: 700, fontSize: 52, margin: "16px 0 4px", letterSpacing: "-0.5px" }}>
-          Your <span style={{ color: "var(--accent)" }}>inbox</span>
-        </h1>
-        <Btn variant="primary" onClick={() => setCompose(true)}><Icon name="pencil" size={14} /> Compose</Btn>
+      <div className="dh">
+        <div>
+          <h1>
+            Your <span className="var">inbox</span>
+          </h1>
+          <p className="dsub" style={{ margin: "6px 0 0" }}>
+            {mail === null ? "Loading…" : unread > 0 ? `${unread} unread · students, families & staff` : "No unread messages."}
+          </p>
+        </div>
+        <button className="btn primary" onClick={() => setShowCompose(true)}>
+          <Icon name="pencil" size={14} /> Compose
+        </button>
       </div>
-      <p style={{ color: "var(--ink-dim)", fontSize: 18, margin: "0 0 28px", fontWeight: 300 }}>
-        {mail === null ? "Loading…" : unread > 0 ? `${unread} unread` : "No unread messages."}
-      </p>
+      <div style={{ height: 24 }} />
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+      <div className="filterbar">
         {BOXES.map((b) => (
-          <PillStub key={b.id} variant={box === b.id ? "active" : "default"} onClick={() => setBox(b.id)}>{b.label}</PillStub>
+          <button key={b.id} className={"fpill " + (b.id === box ? "on" : "")} onClick={() => setBox(b.id)}>
+            {b.label}
+          </button>
         ))}
       </div>
 
-      <WfBox>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {mail !== null && mail.length === 0 && <Muted>Nothing here yet.</Muted>}
-          {(mail ?? []).map((m) => {
-            const other = box === "sent" ? m.recipient : m.sender;
-            const isUnread = box === "inbox" && !m.readAt;
-            return (
-              <div
-                key={m.id}
-                onClick={() => openMessage(m)}
-                style={{ display: "grid", gridTemplateColumns: "32px 32px 180px 1fr 80px", gap: 14, alignItems: "center", padding: "12px 14px", border: isUnread ? "1.2px dashed var(--accent)" : "1.2px dashed var(--ink-faint)", borderRadius: 10, cursor: "pointer" }}
-                className="mail-row"
-              >
-                <button onClick={(e) => { e.stopPropagation(); toggleStar(m); }} aria-label="Star" style={{ background: "transparent", border: "none", cursor: "pointer", color: m.starred ? "var(--accent)" : "var(--ink-faint)", display: "inline-flex" }}>
-                  <Icon name={m.starred ? "star-fill" : "star"} size={16} />
-                </button>
-                <Avatar name={other.name ?? other.email} size={32} />
-                <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  <div style={{ fontSize: 16, fontWeight: isUnread ? 600 : 400 }}>{other.name ?? other.email}</div>
-                  <div style={{ fontSize: 11, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>{other.email}</div>
-                </div>
-                <div style={{ fontSize: 14, color: "var(--ink-dim)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} className="mail-preview">
-                  <span style={{ color: "var(--ink)" }}>{m.subject}</span> — {m.body}
-                </div>
-                <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-faint)", textAlign: "right" }}>{new Date(m.createdAt).toLocaleDateString()}</div>
+      <div className="stagger">
+        {mail !== null && mail.length === 0 && (
+          <div className="card" style={{ textAlign: "center", color: "var(--ink-dim)", padding: "32px 24px" }}>
+            Nothing here yet.
+          </div>
+        )}
+        {(mail ?? []).map((m) => {
+          const other = box === "sent" ? m.recipient : m.sender;
+          const who = other.name ?? other.email;
+          const isUnread = box === "inbox" && !m.readAt;
+          const color = subjectColor(other.id);
+          return (
+            <button key={m.id} className={"maild " + (isUnread ? "unread" : "")} onClick={() => openMessage(m)}>
+              <span className="av-sm" style={{ background: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
+                {initials(who)}
+              </span>
+              <div className="mf" style={{ fontWeight: isUnread ? 700 : 400, flexDirection: "column", alignItems: "flex-start" }}>
+                <span style={{ display: "inline-flex", alignItems: "center" }}>
+                  {isUnread && <span className="udot" />}
+                  {who}
+                </span>
+                <span className="mchan">{box === "sent" ? "to" : "from"} · {other.email}</span>
               </div>
-            );
-          })}
-        </div>
-      </WfBox>
+              <div className="mp">
+                <span style={{ color: "var(--ink)" }}>{m.subject}</span> — {m.body}
+              </div>
+              <div className="mw" style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  aria-label={m.starred ? "Unstar" : "Star"}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleStar(m);
+                  }}
+                  style={{ color: m.starred ? "var(--accent)" : "var(--ink-faint)", cursor: "pointer", display: "inline-flex" }}
+                >
+                  <svg width={15} height={15} viewBox="0 0 24 24">
+                    <path
+                      fill={m.starred ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      strokeWidth={1.5}
+                      strokeLinejoin="round"
+                      d="M12 4l2.5 5 5.5.8-4 3.9.9 5.5L12 16.5 7.1 19.2 8 13.7 4 9.8 9.5 9z"
+                    />
+                  </svg>
+                </span>
+                {new Date(m.createdAt).toLocaleDateString()}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
       {open && <ReadModal mail={open} box={box} onClose={() => setOpen(null)} />}
-      {compose && <ComposeModal onClose={() => setCompose(false)} onSent={() => { setCompose(false); if (box === "sent") load(); }} />}
-
-      <CommandBar />
-
-      <style>{`
-        @media (max-width: 880px) {
-          .mail-row { grid-template-columns: 28px 28px 1fr 60px !important; }
-          .mail-preview { display: none !important; }
-        }
-      `}</style>
+      {showCompose && (
+        <ComposeModal
+          onClose={() => setShowCompose(false)}
+          onSent={() => {
+            setShowCompose(false);
+            if (box === "sent") load();
+          }}
+        />
+      )}
     </>
   );
 }
@@ -125,7 +168,11 @@ function ReadModal({ mail, box, onClose }: { mail: Mail; box: Box; onClose: () =
           {box === "sent" ? "To" : "From"}: {other.name ?? other.email} · {new Date(mail.createdAt).toLocaleString()}
         </div>
         <div style={{ fontSize: 15, color: "var(--ink)", lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{mail.body}</div>
-        <div style={{ display: "flex", justifyContent: "flex-end" }}><button onClick={onClose} style={ghostBtn}>Close</button></div>
+        <div style={{ display: "flex", justifyContent: "flex-end" }}>
+          <button onClick={onClose} className="btn">
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -135,19 +182,29 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: () => 
   const [to, setTo] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (saving) return;
-    setSaving(true); setErr(null);
+    if (submitting) return;
+    setSubmitting(true);
+    setErr(null);
     try {
-      const res = await fetch("/api/messages", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: body.trim() }) });
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ to: to.trim(), subject: subject.trim(), body: body.trim() }),
+      });
       const json: ApiResponse<unknown> = await res.json();
-      if (!json.success) { setErr(json.error); return; }
+      if (!json.success) {
+        setErr(json.error);
+        return;
+      }
       onSent();
-    } finally { setSaving(false); }
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -157,22 +214,48 @@ function ComposeModal({ onClose, onSent }: { onClose: () => void; onSent: () => 
         <p style={{ fontSize: 13, color: "var(--ink-dim)", margin: 0 }}>You can only message people in your classes.</p>
         <input value={to} onChange={(e) => setTo(e.target.value)} placeholder="Recipient email" type="email" required style={inputStyle} autoFocus />
         <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Subject" required maxLength={200} style={inputStyle} />
-        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message…" required rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+        <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Message…" required rows={6} style={{ ...inputStyle, resize: "vertical", fontFamily: "var(--font-sans)" }} />
         {err && <div style={{ color: "var(--danger)", fontSize: 14 }}>{err}</div>}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <button type="button" onClick={onClose} style={ghostBtn}>Cancel</button>
-          <button type="submit" disabled={saving} style={{ ...primaryBtn, opacity: saving ? 0.5 : 1 }}>{saving ? "Sending…" : "Send"}</button>
+          <button type="button" onClick={onClose} className="btn">
+            Cancel
+          </button>
+          <button type="submit" disabled={submitting} className="btn primary">
+            {submitting ? "Sending…" : "Send"}
+          </button>
         </div>
       </form>
     </div>
   );
 }
 
-function Muted({ children }: { children: React.ReactNode }) {
-  return <div style={{ color: "var(--ink-dim)", fontSize: 14, padding: "20px 0", textAlign: "center" }}>{children}</div>;
-}
-const overlayStyle: React.CSSProperties = { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 };
-const modalStyle: React.CSSProperties = { background: "var(--surface)", border: "1.5px solid var(--stroke)", borderRadius: 14, padding: 24, display: "flex", flexDirection: "column", gap: 12 };
-const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1.4px solid var(--stroke)", background: "var(--bg)", color: "var(--ink)", fontSize: 15, outline: "none" };
-const ghostBtn: React.CSSProperties = { padding: "8px 14px", borderRadius: 999, border: "1.4px solid var(--stroke)", background: "transparent", color: "var(--ink)", fontSize: 14, cursor: "pointer" };
-const primaryBtn: React.CSSProperties = { padding: "8px 16px", borderRadius: 999, border: "1.4px solid var(--accent)", background: "var(--accent-soft)", color: "var(--accent)", fontSize: 14, cursor: "pointer" };
+const overlayStyle: React.CSSProperties = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.6)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 100,
+  padding: 16,
+};
+const modalStyle: React.CSSProperties = {
+  background: "var(--bg-2)",
+  border: "1px solid var(--stroke-2)",
+  borderRadius: 17,
+  padding: 24,
+  display: "flex",
+  flexDirection: "column",
+  gap: 12,
+  boxShadow: "0 30px 60px -20px rgba(0,0,0,0.8)",
+};
+const inputStyle: React.CSSProperties = {
+  padding: "10px 12px",
+  borderRadius: 11,
+  border: "1px solid var(--stroke-2)",
+  background: "var(--bg-2)",
+  color: "var(--ink)",
+  fontSize: 15,
+  outline: "none",
+  fontFamily: "var(--font-sans)",
+};

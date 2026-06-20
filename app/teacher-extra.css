@@ -1,0 +1,91 @@
+/* ============================================================
+   Thadar — Teacher surface · net-new styles
+   Loaded alongside student.css (the shared in-app design system).
+   Only classes that don't already exist on the student side live
+   here, all nested under `.teacher-surface`.
+   Ported from the Claude Design handoff (Teacher Dashboard).
+   ============================================================ */
+
+.teacher-surface {
+  /* home bento — 4 tiles, 2×2 on desktop (To grade · Classes · Pulse · Pending) */
+  .bento-teacher {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--gap);
+    align-items: start;
+  }
+
+  /* home — needs-attention pulse tile */
+  .pulse-mini-wrap { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .pulse-av { width: 26px; height: 26px; font-size: 9.5px; flex-shrink: 0; }
+  .pulse-tile .glist .grow { gap: 9px; }
+
+  /* grading queue rows (assignments page) */
+  .qrow {
+    display: grid; grid-template-columns: 20px 1fr 150px auto; gap: 13px; align-items: center;
+    padding: 12px 10px; border-radius: 11px; border: 1px solid transparent;
+    transition: background 140ms, border-color 140ms; width: 100%; text-align: left;
+    background: transparent; color: inherit; font-family: inherit; cursor: pointer;
+  }
+  .qrow:hover { background: var(--panel-2); border-color: var(--stroke); }
+  .qbody { min-width: 0; }
+  .qtitle { font-size: 15.5px; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .qprog { display: flex; align-items: center; gap: 10px; }
+  .qprog-n { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; min-width: 38px; text-align: right; }
+
+  /* class card — extra meta + submission strip (classes page) */
+  .cc-classmeta { display: flex; gap: 22px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--stroke); }
+  .cm { display: flex; flex-direction: column; gap: 2px; }
+  .cm-n { font-family: var(--font-mono); font-size: 19px; font-weight: 500; line-height: 1; }
+  .cm-l { font-family: var(--font-mono); font-size: 9.5px; letter-spacing: 0.6px; text-transform: uppercase; color: var(--ink-faint); }
+
+  .substrip { display: flex; gap: 3px; margin-top: 14px; }
+  .subcell { flex: 1; height: 22px; border-radius: 3px; transition: opacity 360ms ease; }
+
+  /* students — roster table */
+  .roster-head {
+    display: grid; grid-template-columns: 1fr 86px 150px 70px 96px; gap: 14px; align-items: center;
+    padding: 0 12px 12px; font-family: var(--font-mono); font-size: 10px;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .roster-row {
+    display: grid; grid-template-columns: 1fr 86px 150px 70px 96px; gap: 14px; align-items: center;
+    padding: 12px; border-top: 1px solid var(--stroke); transition: background 140ms;
+  }
+  .roster-row:hover { background: var(--panel); }
+  .rstudent { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .rname { font-size: 15.5px; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rid { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-faint); margin-top: 2px; }
+  .rmastery { display: flex; align-items: center; gap: 10px; }
+  .rmastery-n { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); min-width: 34px; }
+  .rlate { font-family: var(--font-mono); font-size: 12px; }
+  .rtrend { display: flex; align-items: center; }
+
+  /* inbox channel sub-label */
+  .maild .mchan { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-faint); margin-top: 3px; }
+
+  /* approval row (home + students) */
+  .approw { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--accent-line); background: var(--accent-soft); border-radius: 11px; }
+  .approw + .approw { margin-top: 10px; }
+  .mini-act { padding: 6px 13px; border-radius: 999px; font-family: var(--font-sans); font-size: 13px; cursor: pointer; border: 1px solid var(--stroke-2); background: var(--panel); color: var(--ink); transition: border-color 140ms; }
+  .mini-act:hover { border-color: var(--accent-line); }
+  .mini-act:disabled { opacity: 0.5; cursor: default; }
+  .mini-act.approve { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+  .mini-act.deny { border-color: rgba(224, 138, 138, 0.4); color: var(--danger); background: transparent; }
+
+  /* responsive */
+  @media (max-width: 1080px) {
+    .bento-teacher { grid-template-columns: 1fr; }
+    .roster-head, .roster-row { grid-template-columns: 1fr 130px 70px 90px; }
+    .roster-head span:nth-child(2), .rtrend { display: none; }
+  }
+  @media (max-width: 760px) {
+    .qrow { grid-template-columns: 20px 1fr auto; }
+    .qprog { display: none; }
+    .roster-head { display: none; }
+    .roster-row { grid-template-columns: 1fr auto; }
+    .roster-row .rcol { display: none; }
+    .cc-classmeta { gap: 16px; }
+    .maild .mchan { display: none; }
+  }
+}

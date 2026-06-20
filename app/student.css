@@ -1,17 +1,20 @@
 /* ============================================================
-   Thadar — Student surface · hi-fi design system
-   Ported from the Claude Design handoff (Student Dashboard).
+   Thadar — in-app surface · hi-fi design system
+   Ported from the Claude Design handoff (Student + Teacher
+   Dashboard share one design system).
    Brand DNA: Geist sans (UI) + JetBrains Mono (meta/numbers),
    faint dot-grid, warm "pencil" accent.
 
-   Everything is nested under `.student-surface` so it only styles
-   student pages — teacher / auth surfaces are untouched. Colour
-   tokens default to dark here and are overridden for light mode in
-   the `[data-theme="light"] .student-surface` block below, so the
-   nav's dark/light toggle themes the whole surface.
+   Everything is nested under `.student-surface` / `.teacher-surface`
+   so it only styles the in-app dashboards — auth surfaces are
+   untouched. Colour tokens default to dark here and are overridden
+   for light mode in the `[data-theme="light"]` block below, so the
+   nav's dark/light toggle themes the whole surface. Teacher-only
+   classes live in `teacher-extra.css`.
    ============================================================ */
 
-.student-surface {
+.student-surface,
+.teacher-surface {
   /* surfaces */
   --bg: #0e0e10;
   --bg-2: #141417;
@@ -413,10 +416,11 @@
 
 /* ============================================================
    Light mode — overrides the dark defaults above so the nav's
-   dark/light toggle re-themes the student surface. Mirrors the
-   warm light palette used by the teacher surface (globals.css).
+   dark/light toggle re-themes the in-app surface. Mirrors the
+   warm light palette used elsewhere (globals.css).
    ============================================================ */
-[data-theme="light"] .student-surface {
+[data-theme="light"] .student-surface,
+[data-theme="light"] .teacher-surface {
   --bg: #f7f5f0;
   --bg-2: #ffffff;
   --panel: rgba(0, 0, 0, 0.025);
