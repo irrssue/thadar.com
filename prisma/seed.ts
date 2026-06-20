@@ -392,6 +392,148 @@ async function main() {
     }
   }
 
+  // ============================================================
+  // Teacher cohort — enrolls a class of demo students in the main
+  // teacher's classes so the redesigned teacher dashboard has real
+  // data to chart: graded history with varied grades (mastery
+  // distribution + support/stretch flags), a few ungraded
+  // submissions (a real grading queue), pending join requests, and
+  // inbox messages addressed to the teacher. Each student joins one
+  // section (round-robin). Idempotent + additive.
+  // ============================================================
+  const teacherClasses = await prisma.class.findMany({
+    where: { ownerId: teacher.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      assignments: {
+        where: { status: "PUBLISHED" },
+        orderBy: { dueAt: "asc" },
+        select: { id: true, title: true, dueAt: true },
+      },
+    },
+  });
+
+  const clampPct = (n: number) => Math.max(35, Math.min(100, Math.round(n)));
+
+  // band = each student's target mastery; grades jitter ±5 around it. Each
+  // student is pinned to one section by name (stable across reseeds — no index
+  // drift if the class set changes).
+  const cohort = [
+    { slug: "hnin", name: "Hnin Wai", band: 93, className: "Mathematics" },
+    { slug: "kyaw", name: "Kyaw Zin Oo", band: 96, className: "Mathematics" },
+    { slug: "nanda", name: "Nanda Aung", band: 56, className: "Mathematics" },
+    { slug: "sulatt", name: "Su Latt", band: 85, className: "English Foundations" },
+    { slug: "eimon", name: "Ei Mon", band: 74, className: "English Foundations" },
+    { slug: "thiri", name: "Thiri Kyaw", band: 48, className: "English Foundations" },
+    { slug: "minthant", name: "Min Thant", band: 79, className: "General Science" },
+    { slug: "zawlin", name: "Zaw Lin", band: 67, className: "General Science" },
+  ];
+
+  const cohortUsers = new Map<string, string>();
+  for (const s of cohort) {
+    const u = await prisma.user.upsert({
+      where: { email: `student.${s.slug}@thadar.com` },
+      update: {},
+      create: {
+        email: `student.${s.slug}@thadar.com`,
+        name: s.name,
+        passwordHash,
+        defaultView: "STUDENT",
+        emailVerified: true,
+      },
+      select: { id: true },
+    });
+    cohortUsers.set(s.slug, u.id);
+  }
+
+  if (teacherClasses.length > 0) {
+    for (let si = 0; si < cohort.length; si++) {
+      const uid = cohortUsers.get(cohort[si].slug)!;
+      const cls = teacherClasses.find((c) => c.name === cohort[si].className) ?? teacherClasses[si % teacherClasses.length];
+      await prisma.classMembership.upsert({
+        where: { userId_classId: { userId: uid, classId: cls.id } },
+        update: { role: "STUDENT", status: "ACTIVE" },
+        create: { userId: uid, classId: cls.id, role: "STUDENT", status: "ACTIVE" },
+      });
+
+      for (let ai = 0; ai < cls.assignments.length; ai++) {
+        const a = cls.assignments[ai];
+        if (!a.dueAt) continue;
+        const offset = Math.round((a.dueAt.getTime() - Date.now()) / DAY);
+        const late = (si + ai) % 5 === 0;
+        if (offset <= -3) {
+          // graded history → RETURNED with a grade near the student's band
+          const grade = String(clampPct(cohort[si].band + (((si * 7 + ai * 13) % 11) - 5)));
+          const submittedAt = new Date(a.dueAt.getTime() + (late ? 2 * DAY : -(1 + (ai % 2)) * DAY));
+          const gradedAt = new Date(a.dueAt.getTime() + (1 + (si % 3)) * DAY);
+          await prisma.submission.upsert({
+            where: { assignmentId_studentId: { assignmentId: a.id, studentId: uid } },
+            update: { status: "RETURNED", grade, submittedAt, gradedAt },
+            create: { assignmentId: a.id, studentId: uid, content: "My completed work.", status: "RETURNED", grade, submittedAt, gradedAt },
+          });
+        } else if (offset <= 2 && (si + ai) % 3 !== 0) {
+          // recent/open → SUBMITTED, awaiting a grade (feeds the grading queue)
+          const submittedAt = new Date(Math.min(Date.now(), a.dueAt.getTime()) - (ai % 2) * DAY);
+          await prisma.submission.upsert({
+            where: { assignmentId_studentId: { assignmentId: a.id, studentId: uid } },
+            update: { status: "SUBMITTED", grade: null, gradedAt: null, submittedAt },
+            create: { assignmentId: a.id, studentId: uid, content: "Submitted for review.", status: "SUBMITTED", submittedAt },
+          });
+        }
+      }
+    }
+  }
+
+  // Pending join requests (teacher's approvals queue).
+  const pendingStudents = [
+    { slug: "ayechan", name: "Aye Chan", className: "Mathematics" },
+    { slug: "bonaing", name: "Bo Bo Naing", className: "English Foundations" },
+  ];
+  for (const p of pendingStudents) {
+    const u = await prisma.user.upsert({
+      where: { email: `student.${p.slug}@thadar.com` },
+      update: {},
+      create: { email: `student.${p.slug}@thadar.com`, name: p.name, passwordHash, defaultView: "STUDENT", emailVerified: true },
+      select: { id: true },
+    });
+    const cls = teacherClasses.find((c) => c.name === p.className) ?? teacherClasses[0];
+    if (cls) {
+      await prisma.classMembership.upsert({
+        where: { userId_classId: { userId: u.id, classId: cls.id } },
+        update: { role: "STUDENT", status: "PENDING" },
+        create: { userId: u.id, classId: cls.id, role: "STUDENT", status: "PENDING" },
+      });
+    }
+  }
+
+  // Inbox messages addressed to the teacher (idempotent on sender + recipient + subject).
+  const teacherMail: { fromId: string; subject: string; body: string; offset: number; unread: boolean }[] = [
+    { fromId: cohortUsers.get("nanda")!, subject: "Help with fractions?", body: "Hi Daw Hla — I'm stuck on the fractions worksheet, question 4. Could you explain it again before the next class?", offset: -0.2, unread: true },
+    { fromId: cohortUsers.get("thiri")!, subject: "My reflection will be late", body: "I wasn't well this week, so my reflection journal will be a day late. Thank you for understanding.", offset: -0.8, unread: true },
+    { fromId: teacher2.id, subject: "Department meeting Friday", body: "Still on for Friday's department meeting? I'll bring the assessment plan to review together.", offset: -1.5, unread: false },
+    { fromId: cohortUsers.get("kyaw")!, subject: "Bonus problem?", body: "Can I try the bonus problem on the Chapter 5 review for extra credit?", offset: -3, unread: false },
+  ];
+  for (const m of teacherMail) {
+    const existing = await prisma.message.findFirst({
+      where: { senderId: m.fromId, recipientId: teacher.id, subject: m.subject },
+      select: { id: true },
+    });
+    if (!existing) {
+      await prisma.message.create({
+        data: {
+          senderId: m.fromId,
+          recipientId: teacher.id,
+          subject: m.subject,
+          body: m.body,
+          createdAt: new Date(Date.now() + m.offset * DAY),
+          readAt: m.unread ? null : new Date(),
+        },
+      });
+    }
+  }
+
   console.log("Seed complete:");
   console.log(`  teacher  teacher@thadar.com / ${PASSWORD}`);
   console.log(`  teacher  teacher2@thadar.com / ${PASSWORD}`);
@@ -399,7 +541,8 @@ async function main() {
   console.log(`  class    "${klass.name}"  invite code: ${INVITE_CODE}`);
   console.log(`  classes  ${catalog.length + 1} total for the student (incl. 1 pending)`);
   console.log(`  lessons  ${lessons.length} in English (3 published, 1 draft) + extras`);
-  console.log(`  data     graded assignments + inbox messages for a populated dashboard`);
+  console.log(`  cohort   ${cohort.length} demo students + ${pendingStudents.length} pending across the teacher's classes`);
+  console.log(`  data     graded history, grading queue + inbox for populated student & teacher dashboards`);
 }
 
 main()
