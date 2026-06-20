@@ -14,7 +14,8 @@
    ============================================================ */
 
 .student-surface,
-.teacher-surface {
+.teacher-surface,
+.admin-surface {
   /* surfaces */
   --bg: #0e0e10;
   --bg-2: #141417;
@@ -420,7 +421,8 @@
    warm light palette used elsewhere (globals.css).
    ============================================================ */
 [data-theme="light"] .student-surface,
-[data-theme="light"] .teacher-surface {
+[data-theme="light"] .teacher-surface,
+[data-theme="light"] .admin-surface {
   --bg: #f7f5f0;
   --bg-2: #ffffff;
   --panel: rgba(0, 0, 0, 0.025);
