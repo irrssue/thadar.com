@@ -35,6 +35,28 @@ export async function requireUser(): Promise<
   return { ok: true, userId: session.user.id };
 }
 
+export type AdminRole = "ADMIN" | "SUPER_ADMIN";
+
+/**
+ * Resolve the current platform admin from the session, or return a 401/403.
+ * Gates every /api/admin/* route. SUPER_ADMIN is a strict superset of ADMIN;
+ * routes that need it check `role === "SUPER_ADMIN"` themselves.
+ */
+export async function requireAdmin(): Promise<
+  | { ok: true; userId: string; role: AdminRole }
+  | { ok: false; response: NextResponse }
+> {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { ok: false, response: fail("Unauthorized", 401) };
+  }
+  const role = session.user.platformRole;
+  if (role !== "ADMIN" && role !== "SUPER_ADMIN") {
+    return { ok: false, response: fail("Forbidden", 403) };
+  }
+  return { ok: true, userId: session.user.id, role };
+}
+
 /** Safely parse a JSON request body; returns undefined on malformed input. */
 export async function readJson(req: Request): Promise<unknown> {
   try {

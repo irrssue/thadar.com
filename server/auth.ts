@@ -5,11 +5,14 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "./db";
 
+type PlatformRole = "USER" | "ADMIN" | "SUPER_ADMIN";
+
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
       defaultView: "TEACHER" | "STUDENT";
+      platformRole: PlatformRole;
     } & DefaultSession["user"];
   }
 }
@@ -17,6 +20,7 @@ declare module "next-auth" {
 declare module "@auth/core/jwt" {
   interface JWT {
     defaultView?: "TEACHER" | "STUDENT";
+    platformRole?: PlatformRole;
   }
 }
 
@@ -46,11 +50,23 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
+        // Suspended accounts are locked out of the entire platform — student,
+        // teacher and admin surfaces alike. This is how an admin "removes
+        // access" from the control panel.
+        if (user.status === "SUSPENDED") return null;
+
+        // Best-effort sign-in timestamp powering the admin "last active" /
+        // "active now" metrics. Never block login on this write.
+        await prisma.user
+          .update({ where: { id: user.id }, data: { lastSeenAt: new Date() } })
+          .catch(() => undefined);
+
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
           defaultView: user.defaultView,
+          platformRole: user.platformRole,
         };
       },
     }),
@@ -60,6 +76,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.sub = user.id;
         token.defaultView = (user as { defaultView?: "TEACHER" | "STUDENT" }).defaultView;
+        token.platformRole = (user as { platformRole?: PlatformRole }).platformRole ?? "USER";
       }
       if (trigger === "update" && session && typeof session === "object") {
         const next = (session as { defaultView?: "TEACHER" | "STUDENT" }).defaultView;
@@ -71,6 +88,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (session.user && token.sub) {
         session.user.id = token.sub;
         session.user.defaultView = token.defaultView ?? "STUDENT";
+        session.user.platformRole = token.platformRole ?? "USER";
       }
       return session;
     },
