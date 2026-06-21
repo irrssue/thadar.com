@@ -53,6 +53,37 @@ async function main() {
     },
   });
 
+  // Platform super admin — signs in at admin.thadar.com to run the control panel.
+  await prisma.user.upsert({
+    where: { email: "admin@thadar.com" },
+    update: { platformRole: "SUPER_ADMIN" },
+    create: {
+      email: "admin@thadar.com",
+      name: "Ana Reyes",
+      passwordHash,
+      defaultView: "TEACHER",
+      platformRole: "SUPER_ADMIN",
+      teacherStatus: "VERIFIED",
+      emailVerified: true,
+    },
+  });
+
+  // A teacher awaiting verification + a flagged message, so the admin
+  // moderation queue and the "needs review" surfaces are populated on a fresh
+  // seed (alongside the pending join requests created further down).
+  await prisma.user.upsert({
+    where: { email: "pending.teacher@thadar.com" },
+    update: { teacherStatus: "PENDING" },
+    create: {
+      email: "pending.teacher@thadar.com",
+      name: "Dara Okafor",
+      passwordHash,
+      defaultView: "TEACHER",
+      teacherStatus: "PENDING",
+      emailVerified: true,
+    },
+  });
+
   // Class — keyed on the fixed invite code so reseeding reuses the same class.
   const klass =
     (await prisma.class.findUnique({ where: { inviteCode: INVITE_CODE } })) ??
@@ -534,7 +565,22 @@ async function main() {
     }
   }
 
+  // Flag one unresolved message so the admin content-moderation queue has a
+  // real item to action on a fresh seed.
+  const toFlag = await prisma.message.findFirst({
+    where: { recipientId: teacher.id, flagged: false, resolvedAt: null },
+    orderBy: { createdAt: "desc" },
+    select: { id: true },
+  });
+  if (toFlag) {
+    await prisma.message.update({
+      where: { id: toFlag.id },
+      data: { flagged: true, flagReason: "auto-filter" },
+    });
+  }
+
   console.log("Seed complete:");
+  console.log(`  admin    admin@thadar.com / ${PASSWORD}  (super admin · admin.thadar.com)`);
   console.log(`  teacher  teacher@thadar.com / ${PASSWORD}`);
   console.log(`  teacher  teacher2@thadar.com / ${PASSWORD}`);
   console.log(`  student  student@thadar.com / ${PASSWORD}`);
