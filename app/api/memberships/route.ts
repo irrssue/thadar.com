@@ -12,7 +12,13 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   const memberships = await prisma.classMembership.findMany({
-    where: { userId: gate.userId, role: "STUDENT", status: { in: ["ACTIVE", "PENDING"] } },
+    where: {
+      userId: gate.userId,
+      role: "STUDENT",
+      status: { in: ["ACTIVE", "PENDING"] },
+      // Archived-by-admin classes drop out of the student's roster.
+      class: { archivedAt: null },
+    },
     orderBy: { joinedAt: "desc" },
     select: {
       id: true,

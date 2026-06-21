@@ -15,7 +15,7 @@ export async function GET() {
   if (!gate.ok) return gate.response;
 
   const classes = await prisma.class.findMany({
-    where: { ownerId: gate.userId },
+    where: { ownerId: gate.userId, archivedAt: null },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

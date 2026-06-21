@@ -24,7 +24,7 @@ export async function GET() {
   }
 
   const classes = await prisma.class.findMany({
-    where: { ownerId: session.user.id },
+    where: { ownerId: session.user.id, archivedAt: null },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,

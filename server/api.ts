@@ -1,6 +1,7 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { auth } from "./auth";
+import { prisma } from "./db";
 
 /** Canonical API envelope used by every route handler (CLAUDE.md code style). */
 export type ApiResponse<T> =
@@ -31,6 +32,15 @@ export async function requireUser(): Promise<
   const session = await auth();
   if (!session?.user?.id) {
     return { ok: false, response: fail("Unauthorized", 401) };
+  }
+  // Suspension takes effect immediately across the whole app, not just at the
+  // next login — an admin suspending an account revokes live access too.
+  const account = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { status: true },
+  });
+  if (!account || account.status === "SUSPENDED") {
+    return { ok: false, response: fail("Account suspended", 403) };
   }
   return { ok: true, userId: session.user.id };
 }
