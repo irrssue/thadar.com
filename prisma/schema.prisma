@@ -12,6 +12,23 @@ enum DefaultView {
   STUDENT
 }
 
+// Platform-wide role, orthogonal to per-class membership. USER is everyone;
+// ADMIN / SUPER_ADMIN unlock the control panel at admin.thadar.com. Only a
+// SUPER_ADMIN may grant or revoke admin roles.
+enum PlatformRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// Account lifecycle, controlled by admins. SUSPENDED accounts cannot sign in
+// and lose all app access; PENDING is reserved for staff awaiting approval.
+enum AccountStatus {
+  ACTIVE
+  PENDING
+  SUSPENDED
+}
+
 enum TeacherStatus {
   UNVERIFIED
   PENDING
@@ -64,7 +81,10 @@ model User {
   image         String?
   defaultView   DefaultView   @default(STUDENT)
   teacherStatus TeacherStatus @default(UNVERIFIED)
+  platformRole  PlatformRole  @default(USER)
+  status        AccountStatus @default(ACTIVE)
   emailVerified Boolean       @default(false)
+  lastSeenAt    DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -79,6 +99,8 @@ model User {
   auditLogs           AuditLog[]
 
   @@index([email])
+  @@index([platformRole])
+  @@index([status])
 }
 
 model Class {
@@ -89,6 +111,7 @@ model Class {
   inviteCode         String?         @unique
   inviteCodeEnabled  Boolean         @default(false)
   discoveryStatus    DiscoveryStatus @default(PRIVATE)
+  archivedAt         DateTime?
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
@@ -99,6 +122,7 @@ model Class {
 
   @@index([ownerId])
   @@index([inviteCode])
+  @@index([archivedAt])
 }
 
 model ClassMembership {
@@ -199,6 +223,11 @@ model Message {
   body        String    @default("")
   readAt      DateTime?
   starred     Boolean   @default(false)
+  // Content moderation: auto-filter or a report flags a message for admin
+  // review. resolvedAt is set once an admin clears or removes it.
+  flagged     Boolean   @default(false)
+  flagReason  String?
+  resolvedAt  DateTime?
   createdAt   DateTime  @default(now())
 
   sender    User  @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
@@ -206,6 +235,7 @@ model Message {
 
   @@index([recipientId, readAt])
   @@index([senderId])
+  @@index([flagged, resolvedAt])
 }
 
 model Notification {
@@ -221,6 +251,15 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
+}
+
+// Platform configuration, edited from the admin Settings page. A simple
+// key/value store (values JSON-encoded) so new toggles need no migration.
+model PlatformSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+  updatedBy String?
 }
 
 model AuditLog {
