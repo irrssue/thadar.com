@@ -3,17 +3,18 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import AdminIcon from "./AdminIcon";
 import { useTheme } from "../../components/ThemeProvider";
-import { ADMIN, initials } from "../data";
+import { initials } from "../data";
 
-type NavItem = { id: string; label: string; href: string; badge?: number };
+type NavItem = { id: string; label: string; href: string };
 
 const NAV: NavItem[] = [
   { id: "overview", label: "Overview", href: "/admin" },
   { id: "users", label: "Users", href: "/admin/users" },
   { id: "classes", label: "Classes", href: "/admin/classes" },
-  { id: "content", label: "Content", href: "/admin/content", badge: 2 },
+  { id: "content", label: "Content", href: "/admin/content" },
   { id: "system", label: "System", href: "/admin/system" },
   { id: "audit", label: "Audit log", href: "/admin/audit" },
   { id: "settings", label: "Settings", href: "/admin/settings" },
@@ -25,11 +26,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export default function AdminNav() {
+export default function AdminNav({ name, role, badge }: { name: string; role: string; badge: number }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
   const [menu, setMenu] = useState(false);
-  const av = initials(ADMIN.name);
+  const av = initials(name);
 
   return (
     <>
@@ -73,8 +74,8 @@ export default function AdminNav() {
             {av}
           </span>
           <div>
-            <div style={{ fontSize: 16 }}>{ADMIN.name}</div>
-            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-dim)" }}>super admin</div>
+            <div style={{ fontSize: 16 }}>{name}</div>
+            <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--ink-dim)" }}>{role.toLowerCase()}</div>
           </div>
         </div>
         <div className="drawer-sep" />
@@ -87,9 +88,19 @@ export default function AdminNav() {
           >
             <AdminIcon name={it.id} size={20} />
             <span>{it.label}</span>
-            {it.badge ? <span className="badge2">{it.badge}</span> : null}
+            {it.id === "content" && badge > 0 ? <span className="badge2">{badge}</span> : null}
           </Link>
         ))}
+        <div className="drawer-sep" />
+        <button
+          type="button"
+          className="drawer-item"
+          onClick={() => signOut({ callbackUrl: "/admin/login" })}
+          style={{ width: "100%", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+        >
+          <AdminIcon name="logout" size={20} />
+          <span>Sign out</span>
+        </button>
       </nav>
     </>
   );

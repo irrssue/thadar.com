@@ -1,12 +1,13 @@
 "use client";
 
-// Settings — platform configuration & policy.
+// Settings — platform configuration & policy, persisted to PlatformSetting.
+// Boolean rows are live toggles that PATCH /api/admin/settings; value rows are
+// shown read-only for now.
 
+import { useState } from "react";
 import PageHead from "../../components/PageHead";
-
-function SetToggle({ on }: { on: boolean }) {
-  return <span className={"toggle " + (on ? "on" : "")} role="switch" aria-checked={on} />;
-}
+import { type SettingsData } from "../../data";
+import { useAdminData, adminMutate } from "../../useAdmin";
 
 function Row({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
@@ -21,25 +22,63 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
 }
 
 export default function SettingsPage() {
+  const { data, loading, error, refetch } = useAdminData<SettingsData>("/api/admin/settings");
+  const [busy, setBusy] = useState<string | null>(null);
+  const s = data ?? {};
+
+  async function toggle(key: string) {
+    if (busy) return;
+    setBusy(key);
+    try {
+      await adminMutate("/api/admin/settings", {
+        method: "PATCH",
+        body: JSON.stringify({ key, value: !s[key] }),
+      });
+      await refetch();
+    } catch {
+      // surfaced by a no-op; value simply won't flip
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  function Toggle({ k }: { k: string }) {
+    const on = !!s[k];
+    return (
+      <button
+        type="button"
+        className={"toggle " + (on ? "on" : "")}
+        role="switch"
+        aria-checked={on}
+        disabled={!!busy}
+        onClick={() => toggle(k)}
+        style={{ cursor: busy ? "default" : "pointer", border: "none", padding: 0 }}
+      />
+    );
+  }
+
+  const Val = ({ k }: { k: string }) => <span className="sval">{String(s[k] ?? "—")}</span>;
+
   return (
     <div className="reveal">
-      <PageHead title="Platform" accent="settings" sub="thadar.com · configuration & policy" />
+      <PageHead title="Platform" accent="settings" sub={loading ? "loading…" : "thadar.com · configuration & policy"} />
+      {error && <div className="card" style={{ padding: 16, color: "var(--danger)" }}>{error}</div>}
       <div className="set-grid">
         <div className="card reveal">
           <div className="tile-title" style={{ fontSize: 17, marginBottom: 8 }}>
             Access & security
           </div>
           <Row label="Enforce 2FA for staff" desc="all teacher & admin accounts">
-            <SetToggle on />
+            <Toggle k="security.enforce2fa" />
           </Row>
           <Row label="Admin domain lock" desc="sign-in only from admin.thadar.com">
-            <SetToggle on />
+            <Toggle k="security.adminDomainLock" />
           </Row>
           <Row label="Session timeout" desc="idle auto-logout">
-            <span className="sval">30 min</span>
+            <Val k="security.sessionTimeout" />
           </Row>
           <Row label="Allow self-registration" desc="students via invite code">
-            <SetToggle on />
+            <Toggle k="security.selfRegistration" />
           </Row>
         </div>
         <div className="card reveal">
@@ -47,16 +86,16 @@ export default function SettingsPage() {
             Content & moderation
           </div>
           <Row label="Auto-filter messages" desc="flag before delivery">
-            <SetToggle on />
+            <Toggle k="moderation.autoFilter" />
           </Row>
           <Row label="Require teacher verification" desc="manual document check">
-            <SetToggle on />
+            <Toggle k="moderation.requireTeacherVerification" />
           </Row>
           <Row label="Profanity blocking" desc="block on send">
-            <SetToggle on={false} />
+            <Toggle k="moderation.profanityBlock" />
           </Row>
           <Row label="Data retention" desc="submissions & logs">
-            <span className="sval">24 months</span>
+            <Val k="moderation.dataRetention" />
           </Row>
         </div>
         <div className="card reveal">
@@ -64,30 +103,24 @@ export default function SettingsPage() {
             Branding
           </div>
           <Row label="Platform name" desc="shown across the app">
-            <span className="sval">thadar.</span>
-          </Row>
-          <Row label="Primary accent" desc="UI theme colour">
-            <span className="sval" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-              <span style={{ width: 14, height: 14, borderRadius: 4, background: "var(--accent)", display: "inline-block" }} />
-              warm
-            </span>
+            <Val k="branding.platformName" />
           </Row>
           <Row label="Support email" desc="footer contact">
-            <span className="sval">help@thadar.edu</span>
+            <Val k="branding.supportEmail" />
           </Row>
         </div>
         <div className="card reveal">
           <div className="tile-title" style={{ fontSize: 17, marginBottom: 8 }}>
             Maintenance
           </div>
-          <Row label="Nightly backups" desc="03:00 UTC · 341 GB">
-            <SetToggle on />
+          <Row label="Nightly backups" desc="03:00 UTC">
+            <Toggle k="maintenance.nightlyBackups" />
           </Row>
           <Row label="Maintenance mode" desc="read-only for non-admins">
-            <SetToggle on={false} />
+            <Toggle k="maintenance.maintenanceMode" />
           </Row>
           <Row label="Release channel" desc="deploy ring">
-            <span className="sval">stable</span>
+            <Val k="maintenance.releaseChannel" />
           </Row>
         </div>
       </div>

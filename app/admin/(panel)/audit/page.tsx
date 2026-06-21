@@ -1,21 +1,27 @@
 "use client";
 
-// Audit — security log with a level filter.
+// Audit — the live security log with a level filter, sourced from the real
+// AuditLog stream every admin action writes to.
 
 import { useState } from "react";
 import PageHead from "../../components/PageHead";
-import { AUDIT, type AuditLevel } from "../../data";
+import { type AuditEntry, type AuditLevel } from "../../data";
+import { useAdminData } from "../../useAdmin";
 
 const LEVELS: (AuditLevel | "all")[] = ["all", "info", "warn", "alert"];
 
 export default function AuditPage() {
+  const { data, loading, error } = useAdminData<AuditEntry[]>("/api/admin/audit");
   const [lvl, setLvl] = useState<AuditLevel | "all">("all");
-  const rows = lvl === "all" ? AUDIT : AUDIT.filter((a) => a.level === lvl);
-  const alerts = AUDIT.filter((a) => a.level === "alert").length;
+
+  const audit = data ?? [];
+  const rows = lvl === "all" ? audit : audit.filter((a) => a.level === lvl);
+  const alerts = audit.filter((a) => a.level === "alert").length;
 
   return (
     <div className="reveal">
-      <PageHead title="Audit" accent="log" sub={`${AUDIT.length} events today · ${alerts} alerts`} action="Export CSV" />
+      <PageHead title="Audit" accent="log" sub={loading ? "loading…" : `${audit.length} recent events · ${alerts} alerts`} />
+      {error && <div className="card" style={{ padding: 16, color: "var(--danger)" }}>{error}</div>}
       <div className="filterbar">
         {LEVELS.map((l) => (
           <button key={l} className={"fpill " + (lvl === l ? "on" : "")} onClick={() => setLvl(l)}>
@@ -41,6 +47,7 @@ export default function AuditPage() {
               <span className="tm">{a.when}</span>
             </div>
           ))}
+          {!loading && rows.length === 0 && <div className="hn" style={{ padding: 16 }}>No events.</div>}
         </div>
       </div>
     </div>

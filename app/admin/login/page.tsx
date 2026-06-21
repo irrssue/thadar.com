@@ -2,23 +2,47 @@
 
 // Admin login gate — restricted to admin.thadar.com.
 //
-// Presentational for now: there is no platform-admin role in the backend yet,
-// so "Sign in" routes into the control panel rather than authenticating. When
-// an admin role + /api/admin auth lands, wire this form to it (and gate the
-// (panel) routes behind it in auth.config / proxy.ts).
+// Authenticates against Auth.js (credentials) and then verifies the account is
+// a platform administrator by probing an admin endpoint. Non-admins are
+// rejected with a message rather than let into the (panel) routes, which are
+// themselves gated server-side in (panel)/layout.tsx.
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import AdminIcon from "../components/AdminIcon";
 
 export default function AdminLogin() {
   const router = useRouter();
-  const [email, setEmail] = useState("admin@thadar.edu");
+  const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  function submit(e: React.FormEvent) {
+  async function submit(e: React.FormEvent) {
     e.preventDefault();
-    router.push("/admin");
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const result = await signIn("credentials", { email, password: pw, redirect: false });
+      if (!result || result.error) {
+        setError("Invalid email or password.");
+        return;
+      }
+      // Confirm platform-admin privileges before entering the panel.
+      const probe = await fetch("/api/admin/me", { cache: "no-store" });
+      if (!probe.ok) {
+        setError("This account is not a platform administrator.");
+        return;
+      }
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -67,8 +91,25 @@ export default function AdminLogin() {
           </div>
         </div>
 
-        <button type="submit" className="login-btn">
-          Sign in <AdminIcon name="arrow" size={16} />
+        {error && (
+          <div
+            role="alert"
+            style={{
+              marginTop: 4,
+              padding: "10px 12px",
+              borderRadius: 10,
+              border: "1px solid color-mix(in srgb, var(--danger) 40%, transparent)",
+              background: "var(--danger-soft)",
+              color: "var(--danger)",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <button type="submit" className="login-btn" disabled={busy} style={busy ? { opacity: 0.7 } : undefined}>
+          {busy ? "Signing in…" : "Sign in"} <AdminIcon name="arrow" size={16} />
         </button>
 
         <div className="login-foot">

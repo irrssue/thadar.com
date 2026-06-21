@@ -1,23 +1,14 @@
 "use client";
 
 // Overview — the admin control panel home. Each tile is a compact, animated
-// view of platform state, reusing the shared chart primitives.
+// view of live platform state from /api/admin/overview, reusing the shared
+// chart primitives.
 
 import Link from "next/link";
 import AdminIcon from "../components/AdminIcon";
 import { AreaTrend, Donut, VBars, BarRow, CountUp } from "../../components/student/charts";
-import {
-  KPIS,
-  SIGNUP_WEEKS,
-  USER_TREND,
-  ROLES,
-  ACTIVE_HOURS,
-  HEALTH,
-  ACTIVITY,
-  QUEUE,
-  SIGNUPS,
-  roleTint,
-} from "../data";
+import { roleTint, type OverviewData } from "../data";
+import { useAdminData } from "../useAdmin";
 
 function TileHead({
   eyebrow,
@@ -47,11 +38,17 @@ function TileHead({
 }
 
 export default function AdminOverview() {
-  const activeNow = KPIS.find((m) => m.id === "active")?.value ?? 0;
-  const needReview = QUEUE.filter((q) => q.urgent).length;
-  const total = ROLES.reduce((s, r) => s + r.value, 0);
-  const newest = SIGNUPS[SIGNUPS.length - 1];
-  const peak = Math.max(...ACTIVE_HOURS.map((h) => h.value));
+  const { data, loading, error } = useAdminData<OverviewData>("/api/admin/overview");
+
+  if (loading) return <div className="hero reveal"><p className="subline">Loading platform overview…</p></div>;
+  if (error || !data) return <div className="hero reveal"><p className="subline hot">{error ?? "Failed to load."}</p></div>;
+
+  const { kpis, signups, signupWeeks, userTrend, roles, activeHours, health, activity, queue } = data;
+  const activeNow = kpis.find((m) => m.id === "active")?.value ?? 0;
+  const needReview = queue.filter((q) => q.urgent).length;
+  const total = roles.reduce((s, r) => s + r.value, 0);
+  const newest = signups[signups.length - 1] ?? 0;
+  const peak = Math.max(0, ...activeHours.map((h) => h.value));
 
   return (
     <>
@@ -72,14 +69,14 @@ export default function AdminOverview() {
 
       {/* KPI strip */}
       <div className="kpi-strip stagger">
-        {KPIS.map((m) => (
+        {kpis.map((m) => (
           <Link key={m.id} href={m.href} className="kpi link">
             <div className="kpi-top">
               <span className="kpi-ico">
                 <AdminIcon name={m.icon} size={17} />
               </span>
               <span className={"kpi-delta " + (m.up ? "up" : "")}>
-                {m.up && m.delta !== "live" && m.delta !== "stable" ? <AdminIcon name="up" size={11} /> : null}
+                {m.up && m.delta !== "live" && m.delta !== "stable" && m.delta.startsWith("+") ? <AdminIcon name="up" size={11} /> : null}
                 {m.delta}
               </span>
             </div>
@@ -103,10 +100,10 @@ export default function AdminOverview() {
             <div>
               <div className="tile-eyebrow">Platform growth · 12 weeks</div>
               <div className="growth-big">
-                <CountUp to={USER_TREND[USER_TREND.length - 1]} dur={1300} />
+                <CountUp to={userTrend[userTrend.length - 1] ?? 0} dur={1300} />
               </div>
               <div className="growth-cap">
-                total users · <span className="up">+{newest} this week</span> · 88% retention
+                total users · <span className="up">+{newest} this week</span>
               </div>
             </div>
             <span className="tile-open">
@@ -114,10 +111,10 @@ export default function AdminOverview() {
             </span>
           </div>
           <div style={{ marginTop: 14 }}>
-            <AreaTrend data={USER_TREND} h={150} color="var(--accent)" dur={1500} baseline />
+            <AreaTrend data={userTrend} h={150} color="var(--accent)" dur={1500} baseline />
             <div className="axis">
-              {SIGNUP_WEEKS.map((w, i) =>
-                i % 2 === 0 || i === SIGNUP_WEEKS.length - 1 ? (
+              {signupWeeks.map((w, i) =>
+                i % 2 === 0 || i === signupWeeks.length - 1 ? (
                   <span key={i}>{w}</span>
                 ) : (
                   <span key={i} style={{ opacity: 0 }}>
@@ -133,19 +130,19 @@ export default function AdminOverview() {
         <Link href="/admin/users" className="tile link area-roles" style={{ textDecoration: "none" }}>
           <TileHead eyebrow="By role" title="Members" open />
           <div className="dist-wrap" style={{ marginTop: 6 }}>
-            <Donut segments={ROLES} size={118} stroke={16}>
+            <Donut segments={roles} size={118} stroke={16}>
               <div className="gauge-num" style={{ fontSize: 26 }}>
                 <CountUp to={total} dur={1100} />
               </div>
               <div className="gauge-lab">total</div>
             </Donut>
             <div className="role-legend">
-              {ROLES.map((r) => (
+              {roles.map((r) => (
                 <div key={r.key} className="role-row">
                   <span className="sdot" style={{ background: r.color }} />
                   <span className="rl">{r.label}</span>
                   <span className="rv">{r.value.toLocaleString()}</span>
-                  <span className="rp">{Math.round((r.value / total) * 100)}%</span>
+                  <span className="rp">{total > 0 ? Math.round((r.value / total) * 100) : 0}%</span>
                 </div>
               ))}
             </div>
@@ -156,15 +153,15 @@ export default function AdminOverview() {
         <Link href="/admin/system" className="tile link area-active" style={{ textDecoration: "none" }}>
           <TileHead eyebrow="Active sessions · today" title="Live traffic" count={`peak ${peak}`} open />
           <div style={{ marginTop: 10, flex: 1, display: "flex", alignItems: "flex-end" }}>
-            <VBars data={ACTIVE_HOURS} h={132} />
+            <VBars data={activeHours} h={132} />
           </div>
         </Link>
 
         {/* System health (bars) */}
         <Link href="/admin/system" className="tile link area-health" style={{ textDecoration: "none" }}>
-          <TileHead eyebrow="Infrastructure" title="System health" count="all green" open />
+          <TileHead eyebrow="Infrastructure" title="System health" count="live" open />
           <div className="health-list">
-            {HEALTH.map((h, i) => (
+            {health.map((h, i) => (
               <div key={i} className="health-item">
                 <div className="hh">
                   <span className="hl">{h.label}</span>
@@ -176,9 +173,9 @@ export default function AdminOverview() {
             ))}
           </div>
           <div className="tile-foot">
-            <span>last incident · 41 days ago</span>
+            <span>derived from live data</span>
             <span className="go">
-              Status page <AdminIcon name="arrow" size={12} />
+              System <AdminIcon name="arrow" size={12} />
             </span>
           </div>
         </Link>
@@ -187,7 +184,8 @@ export default function AdminOverview() {
         <Link href="/admin/audit" className="tile link area-feed" style={{ textDecoration: "none" }}>
           <TileHead eyebrow="Live" title="Activity" open />
           <div className="feed">
-            {ACTIVITY.map((a, i) => (
+            {activity.length === 0 && <div className="hn" style={{ padding: "8px 2px" }}>No recent activity.</div>}
+            {activity.map((a, i) => (
               <div key={i} className="feed-row">
                 <span
                   className="feed-ico"
@@ -197,7 +195,7 @@ export default function AdminOverview() {
                 </span>
                 <div className="feed-body">
                   <div className="feed-txt">
-                    <b>{a.who}</b> {a.act} <span className="obj">{a.obj}</span>
+                    <b>{a.who}</b> {a.act} {a.obj && <span className="obj">{a.obj}</span>}
                   </div>
                 </div>
                 <span className="feed-when">{a.when}</span>
@@ -205,7 +203,7 @@ export default function AdminOverview() {
             ))}
           </div>
           <div className="tile-foot">
-            <span>streaming · {ACTIVITY.length} recent</span>
+            <span>streaming · {activity.length} recent</span>
             <span className="go">
               Audit log <AdminIcon name="arrow" size={12} />
             </span>
@@ -216,8 +214,9 @@ export default function AdminOverview() {
         <Link href="/admin/content" className="tile link area-queue" style={{ textDecoration: "none" }}>
           <TileHead eyebrow={`${needReview} need action`} title="Needs review" open />
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {QUEUE.map((q, i) => (
-              <div key={i} className="modrow">
+            {queue.length === 0 && <div className="hn" style={{ padding: "8px 2px" }}>Queue is clear.</div>}
+            {queue.slice(0, 5).map((q) => (
+              <div key={q.id} className="modrow">
                 <span
                   className="feed-ico"
                   style={{

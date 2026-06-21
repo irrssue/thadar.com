@@ -1,10 +1,11 @@
 "use client";
 
-// System — health + infrastructure.
+// System — live platform scale + infrastructure from /api/admin/system.
 
 import PageHead from "../../components/PageHead";
 import { AreaTrend, Donut, BarRow } from "../../../components/student/charts";
-import { HEALTH, LATENCY, LATENCY_DAYS, STORAGE } from "../../data";
+import { type SystemData } from "../../data";
+import { useAdminData } from "../../useAdmin";
 
 function SysStat({ label, value, sub, color }: { label: string; value: string; sub: string; color: string }) {
   return (
@@ -19,17 +20,21 @@ function SysStat({ label, value, sub, color }: { label: string; value: string; s
 }
 
 export default function SystemPage() {
-  const totalGB = STORAGE.reduce((s, x) => s + x.value, 0);
+  const { data, loading, error } = useAdminData<SystemData>("/api/admin/system");
+
+  if (loading) return <div className="reveal"><PageHead title="System" accent="health" sub="loading…" /></div>;
+  if (error || !data) return <div className="reveal"><PageHead title="System" accent="health" sub={error ?? "Failed to load."} /></div>;
+
+  const { stats, latency, latencyDays, storage, storageTotalLabel, health } = data;
 
   return (
     <div className="reveal">
-      <PageHead title="System" accent="health" sub="all services operational · last incident 41 days ago" action="Status page" />
+      <PageHead title="System" accent="health" sub="live platform metrics · all services operational" />
 
       <div className="sys-strip stagger">
-        <SysStat label="Uptime · 30d" value="99.98%" sub="no incidents" color="var(--good)" />
-        <SysStat label="API latency p95" value="124ms" sub="-14% vs last wk" color="var(--good)" />
-        <SysStat label="Error rate" value="0.02%" sub="below threshold" color="var(--good)" />
-        <SysStat label="DB storage" value={`${totalGB} GB`} sub="of 500 GB" color="var(--accent)" />
+        {stats.map((s) => (
+          <SysStat key={s.label} label={s.label} value={s.value} sub={s.sub} color={s.color} />
+        ))}
       </div>
 
       <div className="dgrid d-content">
@@ -41,9 +46,9 @@ export default function SystemPage() {
             <span className="card-hd-r">7 days · ms</span>
           </div>
           <div style={{ marginTop: 14 }}>
-            <AreaTrend data={LATENCY} h={170} color="var(--good)" dur={1500} />
+            <AreaTrend data={latency} h={170} color="var(--good)" dur={1500} />
             <div className="axis">
-              {LATENCY_DAYS.map((d, i) => (
+              {latencyDays.map((d, i) => (
                 <span key={i}>{d}</span>
               ))}
             </div>
@@ -54,21 +59,21 @@ export default function SystemPage() {
             <div className="tile-title" style={{ fontSize: 17 }}>
               Storage
             </div>
-            <span className="card-hd-r">{totalGB} / 500 GB</span>
+            <span className="card-hd-r">{storageTotalLabel}</span>
           </div>
           <div className="dist-wrap" style={{ marginTop: 10 }}>
-            <Donut segments={STORAGE} size={130} stroke={18}>
-              <div className="gauge-num" style={{ fontSize: 24 }}>
-                {Math.round((totalGB / 500) * 100)}%
+            <Donut segments={storage} size={130} stroke={18}>
+              <div className="gauge-num" style={{ fontSize: 18 }}>
+                {storageTotalLabel}
               </div>
-              <div className="gauge-lab">used</div>
+              <div className="gauge-lab">on disk</div>
             </Donut>
             <div className="dist-legend">
-              {STORAGE.map((s, i) => (
+              {storage.map((s, i) => (
                 <div key={i} className="leg-row">
                   <span className="sdot" style={{ background: s.color }} />
                   <span className="leg-l">{s.label}</span>
-                  <span className="leg-v">{s.value} GB</span>
+                  <span className="leg-v">{s.value}</span>
                 </div>
               ))}
             </div>
@@ -85,7 +90,7 @@ export default function SystemPage() {
           <span className="card-hd-r">live</span>
         </div>
         <div className="health-list" style={{ marginTop: 14 }}>
-          {HEALTH.map((h, i) => (
+          {health.map((h, i) => (
             <div key={i} className="health-item">
               <div className="hh">
                 <span className="hl">{h.label}</span>

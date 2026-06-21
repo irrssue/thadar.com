@@ -1,31 +1,34 @@
 "use client";
 
-// Profile — admin account, session & permissions.
+// Profile — the signed-in admin's account, session & permissions, from
+// /api/admin/me. Sign out ends the Auth.js session.
 
-import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import PageHead from "../../components/PageHead";
 import AdminIcon from "../../components/AdminIcon";
-import { ADMIN, initials } from "../../data";
-
-const PERMISSIONS = ["Manage users & roles", "Content moderation", "System & infrastructure", "Billing & exports"];
+import { initials, type AdminProfile } from "../../data";
+import { useAdminData } from "../../useAdmin";
 
 export default function ProfilePage() {
-  const router = useRouter();
+  const { data, loading, error } = useAdminData<AdminProfile>("/api/admin/me");
+
+  if (loading) return <div className="reveal"><PageHead title="Admin" accent="account" sub="loading…" /></div>;
+  if (error || !data) return <div className="reveal"><PageHead title="Admin" accent="account" sub={error ?? "Failed to load."} /></div>;
 
   return (
     <div className="reveal">
       <PageHead title="Admin" accent="account" sub="your session & permissions" />
       <div className="prof-hd">
         <span className="av" style={{ width: 64, height: 64, fontSize: 22 }}>
-          {initials(ADMIN.name)}
+          {initials(data.name)}
         </span>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 700 }}>{ADMIN.name}</div>
+          <div style={{ fontSize: 26, fontWeight: 700 }}>{data.name}</div>
           <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, color: "var(--ink-dim)", marginTop: 4 }}>
-            {ADMIN.id} · super admin · {ADMIN.email}
+            {data.id} · {data.role.toLowerCase()} · {data.email}
           </div>
         </div>
-        <button className="btn" style={{ marginLeft: "auto" }} onClick={() => router.push("/admin/login")}>
+        <button className="btn" style={{ marginLeft: "auto" }} onClick={() => signOut({ callbackUrl: "/admin/login" })}>
           <AdminIcon name="logout" size={16} /> Sign out
         </button>
       </div>
@@ -34,21 +37,21 @@ export default function ProfilePage() {
         <div className="stat">
           <div className="sl">Role</div>
           <div className="sv" style={{ fontSize: 22 }}>
-            Super admin
+            {data.role}
           </div>
         </div>
         <div className="stat">
           <div className="sl">Managed users</div>
-          <div className="sv">1,842</div>
+          <div className="sv">{data.managedUsers.toLocaleString()}</div>
         </div>
         <div className="stat">
           <div className="sl">Actions · 30d</div>
-          <div className="sv">214</div>
+          <div className="sv">{data.actions30d.toLocaleString()}</div>
         </div>
         <div className="stat">
           <div className="sl">Last login</div>
           <div className="sv" style={{ fontSize: 22 }}>
-            09:41a
+            {data.lastLogin}
           </div>
         </div>
       </div>
@@ -58,7 +61,7 @@ export default function ProfilePage() {
         <div className="tile-title" style={{ fontSize: 17, marginBottom: 8 }}>
           Permissions
         </div>
-        {PERMISSIONS.map((p) => (
+        {data.permissions.map((p) => (
           <div key={p} className="setrow">
             <div className="sbody">
               <div className="sl">{p}</div>
