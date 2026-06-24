@@ -27,7 +27,16 @@ export default function AdminLogin() {
     try {
       const result = await signIn("credentials", { email, password: pw, redirect: false });
       if (!result || result.error) {
-        setError("Invalid email or password.");
+        // Only `CredentialsSignin` means the email/password were actually wrong.
+        // Any other Auth.js error (e.g. `Configuration` — a server-side throw such
+        // as a database/schema failure, or `MissingCSRF`) is NOT a bad password,
+        // and must not be reported as one or it sends you chasing the wrong thing.
+        const code = result?.error;
+        if (code && code !== "CredentialsSignin") {
+          setError(`Sign-in is temporarily unavailable (${code}). This is a server problem, not your password — try again shortly or check the server logs.`);
+        } else {
+          setError("Invalid email or password.");
+        }
         return;
       }
       // Confirm platform-admin privileges before entering the panel.
