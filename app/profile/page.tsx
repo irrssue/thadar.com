@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import StudentShell from "../components/student/StudentShell";
 import { initials } from "../components/student/subject";
 import { RadialGauge, Heatmap, CountUp } from "../components/student/charts";
@@ -271,6 +271,16 @@ export default function ProfilePage() {
           </form>
         </div>
       )}
+
+      <div className="reveal" style={{ animationDelay: "200ms", marginTop: "var(--gap)" }}>
+        <button
+          className="btn"
+          onClick={() => signOut({ callbackUrl: "/login" })}
+          style={{ color: "var(--danger)", borderColor: "var(--danger)", width: "100%", padding: "12px 0", fontSize: 15 }}
+        >
+          Sign out
+        </button>
+      </div>
     </StudentShell>
   );
 }
