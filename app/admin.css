@@ -38,7 +38,7 @@
     position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5);
     opacity: 0; pointer-events: none; transition: opacity 200ms; z-index: 60;
   }
-  .scrim.open { opacity: 1; pointer-events: auto; }
+  .scrim.open { opacity: 1; pointer-events: auto; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
   .drawer {
     position: fixed; top: 0; left: 0; bottom: 0; width: 280px; max-width: 86vw;
     background: var(--bg-2); border-right: 1px solid var(--stroke);
