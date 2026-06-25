@@ -5,7 +5,7 @@ import CyclingWord from "@/components/CyclingWord";
 export const metadata: Metadata = {
   title: "Thadar — The classroom platform teachers deserve",
   description:
-    "Create classes, post lessons, track progress, and give assignments — all in one place. Built for teachers, loved by students.",
+    "Thadar is the classroom platform for teachers and students — lessons, assignments, and progress in one place.",
 };
 
 const features = [
@@ -188,7 +188,7 @@ export default function HomePage() {
               lineHeight: 1.6,
             }}
           >
-            Create classes, post lessons, track who&apos;s keeping up, and give assignments — all in one place. No complexity. No noise.
+            Lessons, assignments, and progress tracking — all in one place, for teachers and students.
           </p>
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
