@@ -347,13 +347,13 @@ function LoginPageInner() {
           }}
         >
           By continuing, you agree to our{" "}
-          <a href="#" style={{ color: "var(--ink-dim)" }}>
+          <Link href="/legal" style={{ color: "var(--ink-dim)" }}>
             Terms
-          </a>{" "}
+          </Link>{" "}
           and{" "}
-          <a href="#" style={{ color: "var(--ink-dim)" }}>
+          <Link href="/legal?tab=privacy" style={{ color: "var(--ink-dim)" }}>
             Privacy Policy
-          </a>
+          </Link>
           .
         </p>
       </div>
