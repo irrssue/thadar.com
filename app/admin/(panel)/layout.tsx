@@ -27,7 +27,7 @@ export default async function PanelLayout({ children }: { children: React.ReactN
   return (
     <AdminProvider value={ctx}>
       <div className="page" data-surface="admin">
-        <AdminNav name={ctx.name} role={ctx.role} badge={urgent} />
+        <AdminNav name={ctx.name} role={ctx.role} badge={urgent} queue={queue} />
         {children}
       </div>
     </AdminProvider>

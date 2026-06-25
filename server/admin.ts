@@ -306,12 +306,17 @@ async function getActivity(): Promise<Activity[]> {
 /* ----------------------------- moderation queue ----------------------------- */
 
 export async function getQueue(): Promise<QueueItem[]> {
-  const [flagged, pendingTeachers, pendingMembers, reviewClasses] = await Promise.all([
+  const [flagged, pendingAccounts, pendingTeachers, pendingMembers, reviewClasses] = await Promise.all([
     prisma.message.findMany({
       where: { flagged: true, resolvedAt: null },
       orderBy: { createdAt: "desc" },
       take: 10,
       select: { id: true, subject: true, flagReason: true },
+    }),
+    prisma.user.findMany({
+      where: { status: "PENDING" },
+      take: 10,
+      select: { id: true, name: true, email: true },
     }),
     prisma.user.findMany({
       where: { teacherStatus: "PENDING" },
@@ -340,6 +345,17 @@ export async function getQueue(): Promise<QueueItem[]> {
       who: m.flagReason ?? "auto-filter",
       icon: "flag",
       action: "message",
+    });
+  }
+  for (const u of pendingAccounts) {
+    items.push({
+      id: `account:${u.id}`,
+      item: `New sign-up · ${u.name ?? u.email}`,
+      kind: "Account approval",
+      urgent: true,
+      who: u.email,
+      icon: "users",
+      action: "account",
     });
   }
   for (const t of pendingTeachers) {

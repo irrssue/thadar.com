@@ -5,8 +5,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import AdminIcon from "./AdminIcon";
+import NotificationPanel from "./NotificationPanel";
 import { useTheme } from "../../components/ThemeProvider";
 import { initials } from "../data";
+import type { QueueItem } from "../types";
 
 type NavItem = { id: string; label: string; href: string };
 
@@ -26,10 +28,11 @@ function isActive(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-export default function AdminNav({ name, role, badge }: { name: string; role: string; badge: number }) {
+export default function AdminNav({ name, role, badge, queue }: { name: string; role: string; badge: number; queue: QueueItem[] }) {
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
   const [menu, setMenu] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const av = initials(name);
 
   return (
@@ -47,12 +50,24 @@ export default function AdminNav({ name, role, badge }: { name: string; role: st
         <button className="iconbtn" aria-label="Toggle theme" onClick={toggle}>
           <AdminIcon name={theme === "light" ? "moon" : "sun"} size={19} />
         </button>
-        <button className="iconbtn" aria-label="Notifications" style={{ position: "relative" }}>
-          <AdminIcon name="bell" size={20} />
-          <span
-            style={{ position: "absolute", top: 8, right: 9, width: 7, height: 7, borderRadius: 999, background: "var(--accent)" }}
-          />
-        </button>
+        <div style={{ position: "relative" }}>
+          <button
+            className="iconbtn"
+            aria-label="Notifications"
+            style={{ position: "relative" }}
+            onClick={() => setNotifOpen((o) => !o)}
+          >
+            <AdminIcon name="bell" size={20} />
+            {badge > 0 && (
+              <span
+                style={{ position: "absolute", top: 8, right: 9, width: 7, height: 7, borderRadius: 999, background: "var(--danger)" }}
+              />
+            )}
+          </button>
+          {notifOpen && (
+            <NotificationPanel initialItems={queue} onClose={() => setNotifOpen(false)} />
+          )}
+        </div>
         <Link href="/admin/profile" className="av" title="Profile" style={{ textDecoration: "none" }}>
           {av}
         </Link>
