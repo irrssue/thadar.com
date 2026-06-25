@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import CyclingWord from "@/components/CyclingWord";
 
 export const metadata: Metadata = {
   title: "Thadar — The classroom platform teachers deserve",
@@ -175,7 +176,7 @@ export default function HomePage() {
           >
             The classroom platform
             <br />
-            <span style={{ color: "var(--accent)" }}>teachers deserve</span>
+            <CyclingWord /> deserve
           </h1>
 
           <p
