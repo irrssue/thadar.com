@@ -16,6 +16,7 @@ export default function AdminLogin() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -91,12 +92,28 @@ export default function AdminLogin() {
               <AdminIcon name="lock" size={18} />
             </span>
             <input
-              type="password"
+              type={showPw ? "text" : "password"}
               value={pw}
               onChange={(e) => setPw(e.target.value)}
               placeholder="••••••••••"
               autoComplete="current-password"
             />
+            <button
+              type="button"
+              onClick={() => setShowPw((v) => !v)}
+              aria-label={showPw ? "Hide password" : "Show password"}
+              style={{
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "var(--ink-dim)",
+                display: "inline-flex",
+                padding: "0 2px",
+                opacity: 0.6,
+              }}
+            >
+              <AdminIcon name={showPw ? "eye-off" : "eye"} size={16} />
+            </button>
           </div>
         </div>
 
