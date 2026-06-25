@@ -259,6 +259,9 @@ function LoginPageInner() {
               fontSize: 14,
               fontWeight: 500,
               textDecoration: "none",
+              padding: "6px 4px",
+              margin: "-6px -4px",
+              display: "inline-block",
             }}
           >
             Create one
