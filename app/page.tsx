@@ -113,7 +113,7 @@ export default function HomePage() {
               Sign in
             </Link>
             <Link
-              href="/login?mode=register"
+              href="/signup/intent"
               style={{
                 padding: "7px 16px",
                 borderRadius: 8,
@@ -193,7 +193,7 @@ export default function HomePage() {
 
           <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
             <Link
-              href="/login?mode=register"
+              href="/signup/intent"
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -430,7 +430,7 @@ export default function HomePage() {
               Free to start. No credit card needed.
             </p>
             <Link
-              href="/login?mode=register"
+              href="/signup/intent"
               style={{
                 display: "inline-flex",
                 alignItems: "center",

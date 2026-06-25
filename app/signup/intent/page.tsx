@@ -9,31 +9,10 @@ type Intent = "teacher" | "student";
 export default function IntentPage() {
   const router = useRouter();
   const [selected, setSelected] = useState<Intent | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  async function handleContinue() {
-    if (!selected || submitting) return;
-    setError(null);
-    setSubmitting(true);
-    try {
-      const res = await fetch("/api/auth/intent", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ intent: selected }),
-      });
-      const json = await res.json();
-      if (!res.ok || !json.success) {
-        setError(json.error ?? "Could not save your choice");
-        return;
-      }
-      router.push(json.data.redirect);
-      router.refresh();
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setSubmitting(false);
-    }
+  function handleContinue() {
+    if (!selected) return;
+    router.push(`/signup/register?role=${selected}`);
   }
 
   return (
@@ -104,27 +83,10 @@ export default function IntentPage() {
           />
         </div>
 
-        {error && (
-          <div
-            role="alert"
-            style={{
-              marginTop: 16,
-              padding: "10px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--danger-ring, #b54a3d)",
-              background: "var(--danger-bg, rgba(181, 74, 61, 0.08))",
-              color: "var(--danger, #b54a3d)",
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
-
         <button
           type="button"
           onClick={handleContinue}
-          disabled={!selected || submitting}
+          disabled={!selected}
           style={{
             marginTop: 22,
             width: "100%",
@@ -139,12 +101,11 @@ export default function IntentPage() {
             color: selected ? "#1a1814" : "var(--ink-dim)",
             fontSize: 14,
             fontWeight: 600,
-            cursor: !selected || submitting ? "not-allowed" : "pointer",
-            opacity: submitting ? 0.7 : 1,
+            cursor: !selected ? "not-allowed" : "pointer",
             transition: "background 140ms",
           }}
         >
-          {submitting ? "Saving…" : "Continue"}
+          Continue
           <Icon name="arrow-right" size={16} />
         </button>
 

@@ -9,6 +9,7 @@ const registerSchema = z.object({
   name: z.string().trim().min(1).max(80),
   email: z.string().email().toLowerCase().max(200),
   password: z.string().min(8).max(200),
+  role: z.enum(["teacher", "student"]).optional(),
 });
 
 type ApiResponse<T> =
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, email, password } = parsed.data;
+  const { name, email, password, role } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
@@ -45,9 +46,10 @@ export async function POST(req: Request) {
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
+  const defaultView = role === "teacher" ? "TEACHER" : "STUDENT";
 
   const user = await prisma.user.create({
-    data: { name, email, passwordHash, status: "PENDING" },
+    data: { name, email, passwordHash, status: "PENDING", defaultView },
     select: { id: true, email: true, name: true, defaultView: true },
   });
 

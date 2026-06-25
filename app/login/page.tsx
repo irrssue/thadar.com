@@ -6,8 +6,6 @@ import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Icon from "../components/Icon";
 
-type Mode = "login" | "register";
-
 // Only allow same-origin paths — callbackUrl comes from the query string,
 // so anything else is an open-redirect vector.
 function safeCallbackPath(raw: string | null): string {
@@ -33,18 +31,11 @@ function LoginPageInner() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
 
-  const [mode, setMode] = useState<Mode>(
-    searchParams.get("mode") === "register" ? "register" : "login"
-  );
   const [showPw, setShowPw] = useState(false);
-  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-
-  const isRegister = mode === "register";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,27 +44,6 @@ function LoginPageInner() {
     setSubmitting(true);
 
     try {
-      if (isRegister) {
-        const res = await fetch("/api/auth/register", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ name, email, password }),
-        });
-        const json = await res.json();
-        if (!res.ok || !json.success) {
-          setError(json.error ?? "Could not create account");
-          return;
-        }
-        // New accounts start as PENDING — admin must approve before they can sign in.
-        setToast("Account created!");
-        await new Promise((r) => setTimeout(r, 1200));
-        setToast(null);
-        setMode("login");
-        setPassword("");
-        setError("Your account is pending admin approval. You'll be able to sign in once approved.");
-        return;
-      }
-
       const result = await signIn("credentials", {
         email,
         password,
@@ -118,43 +88,6 @@ function LoginPageInner() {
         padding: "40px 24px",
       }}
     >
-      {toast && (
-        <div
-          role="status"
-          aria-live="polite"
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 9999,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              padding: "14px 20px",
-              borderRadius: 14,
-              background: "var(--bg)",
-              border: "1px solid var(--accent-ring)",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.32)",
-              color: "var(--ink)",
-              fontSize: 15,
-              fontWeight: 500,
-              letterSpacing: "-0.1px",
-              animation: "fadeInScale 200ms ease",
-            }}
-          >
-            <span style={{ color: "var(--accent)", fontSize: 18 }}>✓</span>
-            {toast}
-          </div>
-        </div>
-      )}
-
       <div
         style={{
           width: "100%",
@@ -200,7 +133,7 @@ function LoginPageInner() {
               letterSpacing: "-0.3px",
             }}
           >
-            {isRegister ? "Create your account" : "Welcome back"}
+            Welcome back
           </h1>
           <p
             style={{
@@ -209,22 +142,10 @@ function LoginPageInner() {
               margin: "0 0 22px",
             }}
           >
-            {isRegister
-              ? "Start learning at your own pace."
-              : "Sign in to continue your learning."}
+            Sign in to continue your learning.
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {isRegister && (
-              <Field
-                icon="profile"
-                type="text"
-                placeholder="Full name"
-                value={name}
-                onChange={setName}
-              />
-            )}
-
             <Field
               icon="mail"
               type="email"
@@ -258,20 +179,18 @@ function LoginPageInner() {
               }
             />
 
-            {!isRegister && (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
-                <a
-                  href="#"
-                  style={{
-                    color: "var(--ink-dim)",
-                    fontSize: 13,
-                    textDecoration: "none",
-                  }}
-                >
-                  Forgot password?
-                </a>
-              </div>
-            )}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
+              <a
+                href="#"
+                style={{
+                  color: "var(--ink-dim)",
+                  fontSize: 13,
+                  textDecoration: "none",
+                }}
+              >
+                Forgot password?
+              </a>
+            </div>
 
             {error && (
               <div
@@ -312,13 +231,7 @@ function LoginPageInner() {
                 letterSpacing: "0.1px",
               }}
             >
-              {submitting
-                ? isRegister
-                  ? "Creating account…"
-                  : "Signing in…"
-                : isRegister
-                  ? "Create account"
-                  : "Sign in"}
+              {submitting ? "Signing in…" : "Sign in"}
               <Icon name="arrow-right" size={16} />
             </button>
           </form>
@@ -332,22 +245,18 @@ function LoginPageInner() {
             fontSize: 14,
           }}
         >
-          {isRegister ? "Already have an account?" : "New to Thadar?"}{" "}
-          <button
-            type="button"
-            onClick={() => setMode(isRegister ? "login" : "register")}
+          New to Thadar?{" "}
+          <Link
+            href="/signup/intent"
             style={{
-              background: "transparent",
-              border: "none",
               color: "var(--accent)",
-              cursor: "pointer",
               fontSize: 14,
               fontWeight: 500,
-              padding: 0,
+              textDecoration: "none",
             }}
           >
-            {isRegister ? "Sign in" : "Create one"}
-          </button>
+            Create one
+          </Link>
         </p>
 
         <p
