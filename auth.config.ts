@@ -1,6 +1,9 @@
 import type { NextAuthConfig } from "next-auth";
 
-const PROTECTED_PREFIXES = ["/home", "/classes", "/profile", "/inbox", "/teacher", "/signup/intent"];
+// NB: /signup/* and /login are PUBLIC — gating them sends logged-out users who
+// tap "Create one" into a /login?callbackUrl=/signup/intent bounce loop (the
+// link appears dead, then login lands them back on the sign-up flow).
+const PROTECTED_PREFIXES = ["/home", "/classes", "/profile", "/inbox", "/teacher"];
 
 export default {
   pages: { signIn: "/login" },

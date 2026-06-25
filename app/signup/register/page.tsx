@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Icon from "@/app/components/Icon";
+import { useRedirectIfAuthenticated } from "@/app/components/useRedirectIfAuthenticated";
 
 export default function RegisterPage() {
   return (
@@ -16,6 +17,9 @@ export default function RegisterPage() {
 function RegisterPageInner() {
   const searchParams = useSearchParams();
   const role = searchParams.get("role") === "teacher" ? "teacher" : "student";
+
+  // Already signed in? Don't show the registration form.
+  const authStatus = useRedirectIfAuthenticated();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -48,6 +52,8 @@ function RegisterPageInner() {
       setSubmitting(false);
     }
   }
+
+  if (authStatus === "authenticated") return null;
 
   return (
     <div

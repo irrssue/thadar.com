@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import Icon from "../components/Icon";
+import { useRedirectIfAuthenticated } from "../components/useRedirectIfAuthenticated";
 
 // Only allow same-origin paths — callbackUrl comes from the query string,
 // so anything else is an open-redirect vector.
@@ -30,6 +31,9 @@ export default function LoginPage() {
 function LoginPageInner() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl");
+
+  // Already signed in? Don't show the login form — go to the dashboard.
+  const authStatus = useRedirectIfAuthenticated();
 
   const [showPw, setShowPw] = useState(false);
   const [email, setEmail] = useState("");
@@ -83,6 +87,10 @@ function LoginPageInner() {
       setSubmitting(false);
     }
   }
+
+  // While we know the user is signed in (and being redirected), render nothing
+  // so the login form never flashes — and can't be interacted with.
+  if (authStatus === "authenticated") return null;
 
   return (
     <div

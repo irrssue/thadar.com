@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Icon from "@/app/components/Icon";
+import { useRedirectIfAuthenticated } from "@/app/components/useRedirectIfAuthenticated";
 
 type Intent = "teacher" | "student";
 
@@ -10,10 +11,16 @@ export default function IntentPage() {
   const router = useRouter();
   const [selected, setSelected] = useState<Intent | null>(null);
 
+  // An already-signed-in user shouldn't be choosing a sign-up intent — bounce
+  // them to their dashboard instead of into the registration flow.
+  const authStatus = useRedirectIfAuthenticated();
+
   function handleContinue() {
     if (!selected) return;
     router.push(`/signup/register?role=${selected}`);
   }
+
+  if (authStatus === "authenticated") return null;
 
   return (
     <div
