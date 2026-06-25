@@ -78,13 +78,33 @@ jobs:
           chmod 644 ~/.ssh/known_hosts
           printf 'Host ssh.irrssue.com\n  User irrssue\n  IdentityFile ~/.ssh/deploy_key\n  ProxyCommand cloudflared access ssh --hostname %%h\n  StrictHostKeyChecking yes\n' >> ~/.ssh/config
 
-      - name: Pull and restart
+      - name: Pull latest repo
+        run: |
+          ssh ssh.irrssue.com 'cd ~/thadar.com && git pull --ff-only origin main'
+
+      - name: Run database migrations
+        # Apply any pending Prisma migrations against the prod DB BEFORE the new
+        # container is started, so the schema is always ahead of (or level with)
+        # the code that depends on it. This runs on the homeserver checkout, which
+        # carries the Prisma toolchain (.env, node_modules, prisma/) — the lean
+        # standalone runtime image deliberately does NOT ship the Prisma CLI.
+        #
+        # Failure mode is safe by design: GitHub Actions runs steps with
+        # `set -eo pipefail`, so if migrate exits non-zero this job stops here and
+        # the "Deploy container" step below never runs. The currently-running
+        # container keeps serving — a failed migration aborts the deploy but can
+        # never take the site down. (A previous attempt to migrate from inside the
+        # container entrypoint crash-looped the runtime and caused a full outage;
+        # this keeps migrations entirely out of the request-serving path.)
+        run: |
+          ssh ssh.irrssue.com 'cd ~/thadar.com && npx prisma migrate deploy --schema=prisma/schema.prisma'
+
+      - name: Deploy container
         env:
           SHA_TAG: sha-${{ github.sha }}
           GHCR_READ_TOKEN: ${{ secrets.GHCR_READ_TOKEN }}
         run: |
           printf '%s' "$GHCR_READ_TOKEN" | ssh ssh.irrssue.com 'docker login ghcr.io -u irrssue --password-stdin'
-          ssh ssh.irrssue.com 'cd ~/thadar.com && git pull --ff-only origin main'
           ssh ssh.irrssue.com 'docker pull ghcr.io/irrssue/thadar:latest'
           ssh ssh.irrssue.com 'cd ~/thadar.com && docker compose -f docker/homeserver/docker-compose.yml up -d --no-build thadar'
           ssh ssh.irrssue.com 'docker image prune -f --filter "until=24h" --filter "label=org.opencontainers.image.source=https://github.com/irrssue/thadar.com"'
