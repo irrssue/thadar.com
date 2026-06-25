@@ -58,13 +58,6 @@ export default function AdminLogin() {
   return (
     <div className="login-wrap">
       <form className="login-card reveal" onSubmit={submit}>
-        <div className="login-domain">
-          <span className="dot" />
-          secure · <b>admin.thadar.com</b>
-        </div>
-        <div className="login-lock">
-          <AdminIcon name="lock" size={24} />
-        </div>
         <h1 className="login-title">
           thadar<span className="var">.</span> admin
         </h1>
@@ -138,13 +131,7 @@ export default function AdminLogin() {
           {busy ? "Signing in…" : "Sign in"} <AdminIcon name="arrow" size={16} />
         </button>
 
-        <div className="login-foot">
-          <span className="ok">
-            <span className="dot" />
-            SSO · 2FA enforced
-          </span>
-          <span>v3.2 · build 1842</span>
-        </div>
+
       </form>
       <div className="login-bg-meta">All access is logged · sessions expire after 30m idle</div>
     </div>
