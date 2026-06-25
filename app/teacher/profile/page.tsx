@@ -230,11 +230,11 @@ export default function TeacherProfile() {
         </div>
       )}
 
-      <div className="reveal" style={{ animationDelay: "200ms", marginTop: "var(--gap)" }}>
+      <div className="reveal" style={{ animationDelay: "200ms", marginTop: "var(--gap)", display: "flex", justifyContent: "center" }}>
         <button
           className="btn"
           onClick={() => signOut({ callbackUrl: "/login" })}
-          style={{ color: "var(--danger)", borderColor: "var(--danger)", width: "100%", padding: "12px 0", fontSize: 15 }}
+          style={{ color: "var(--danger)", borderColor: "var(--danger)" }}
         >
           Sign out
         </button>
