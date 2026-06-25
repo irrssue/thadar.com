@@ -67,10 +67,16 @@ function LoginPageInner() {
         return;
       }
 
-      // Full-page navigation: a client-side router.push here can reuse the
-      // pre-login prefetch of the target route (a 307 back to /login), which
-      // bounces the user to the login form even though the session is valid.
-      window.location.assign(safeCallbackPath(callbackUrl));
+      // If there's an explicit callbackUrl, honour it; otherwise route based
+      // on the user's persisted defaultView so teachers land on /teacher.
+      if (callbackUrl) {
+        window.location.assign(safeCallbackPath(callbackUrl));
+        return;
+      }
+      const sessionRes = await fetch("/api/auth/session").catch(() => null);
+      const sessionJson = sessionRes ? await sessionRes.json().catch(() => null) : null;
+      const defaultView = sessionJson?.user?.defaultView;
+      window.location.assign(defaultView === "TEACHER" ? "/teacher" : "/home");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
