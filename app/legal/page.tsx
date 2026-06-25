@@ -314,10 +314,10 @@ function TermsContent() {
         <P>
           For questions about these Terms of Service, please contact us at{" "}
           <a
-            href="mailto:support@thadar.com"
+            href="mailto:liam@irrssue.com"
             style={{ color: "var(--accent)", textDecoration: "none" }}
           >
-            support@thadar.com
+            liam@irrssue.com
           </a>
           .
         </P>
@@ -469,10 +469,10 @@ function PrivacyContent() {
         <P>
           To exercise any of these rights, please contact us at{" "}
           <a
-            href="mailto:support@thadar.com"
+            href="mailto:liam@irrssue.com"
             style={{ color: "var(--accent)", textDecoration: "none" }}
           >
-            support@thadar.com
+            liam@irrssue.com
           </a>
           .
         </P>
@@ -505,10 +505,10 @@ function PrivacyContent() {
           For questions, concerns, or requests related to this Privacy Policy,
           please contact us at{" "}
           <a
-            href="mailto:support@thadar.com"
+            href="mailto:liam@irrssue.com"
             style={{ color: "var(--accent)", textDecoration: "none" }}
           >
-            support@thadar.com
+            liam@irrssue.com
           </a>
           .
         </P>
