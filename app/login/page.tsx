@@ -64,6 +64,14 @@ function LoginPageInner() {
           setError(json.error ?? "Could not create account");
           return;
         }
+        // New accounts start as PENDING — admin must approve before they can sign in.
+        setToast("Account created!");
+        await new Promise((r) => setTimeout(r, 1200));
+        setToast(null);
+        setMode("login");
+        setPassword("");
+        setError("Your account is pending admin approval. You'll be able to sign in once approved.");
+        return;
       }
 
       const result = await signIn("credentials", {
@@ -73,14 +81,19 @@ function LoginPageInner() {
       });
 
       if (!result || result.error) {
-        setError(isRegister ? "Account created but sign-in failed" : "Invalid email or password");
-        return;
-      }
-
-      if (isRegister) {
-        setToast("Account created successfully!");
-        await new Promise((r) => setTimeout(r, 1200));
-        window.location.assign("/signup/intent");
+        const statusRes = await fetch(
+          `/api/auth/account-status?email=${encodeURIComponent(email)}`,
+        ).catch(() => null);
+        const statusJson = statusRes
+          ? await statusRes.json().catch(() => null)
+          : null;
+        if (statusJson?.status === "pending") {
+          setError("Your account is pending admin approval. You'll be able to sign in once approved.");
+        } else if (statusJson?.status === "suspended") {
+          setError("Your account has been suspended. Contact an admin for help.");
+        } else {
+          setError("Invalid email or password");
+        }
         return;
       }
 

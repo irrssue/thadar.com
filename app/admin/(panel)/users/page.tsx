@@ -35,7 +35,10 @@ export default function UsersPage() {
 
   function actionsFor(u: DirUser): Action[] {
     const list: Action[] = [];
-    if (u.status === "suspended") {
+    if (u.status === "pending") {
+      list.push({ label: "Approve account", run: () => patch(u, { op: "status", value: "ACTIVE" }) });
+      list.push({ label: "Reject (suspend)", danger: true, run: () => patch(u, { op: "status", value: "SUSPENDED" }) });
+    } else if (u.status === "suspended") {
       list.push({ label: "Reactivate account", run: () => patch(u, { op: "status", value: "ACTIVE" }) });
     } else {
       list.push({ label: "Suspend account", danger: true, run: () => patch(u, { op: "status", value: "SUSPENDED" }) });

@@ -50,6 +50,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const ok = await bcrypt.compare(password, user.passwordHash);
         if (!ok) return null;
 
+        // Pending accounts haven't been approved by an admin yet.
+        if (user.status === "PENDING") return null;
+
         // Suspended accounts are locked out of the entire platform — student,
         // teacher and admin surfaces alike. This is how an admin "removes
         // access" from the control panel.
