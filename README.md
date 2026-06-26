@@ -57,6 +57,10 @@ DATABASE_URL          # postgresql://thadar:PASSWORD@host:5433/thadar?schema=pub
 AUTH_SECRET           # openssl rand -base64 32
 AUTH_URL              # http://localhost:3000 in dev, https://thadar.com in prod
 AUTH_TRUST_HOST       # true (Cloudflare Tunnel proxies the request)
+ADMIN_HOST            # hostname rewritten to /admin tree (e.g. admin.thadar.com)
+RESEND_API_KEY        # transactional email; no-op logged when unset
+EMAIL_FROM_NOREPLY    # "Thadar <noreply@thadar.com>" — system mail
+EMAIL_FROM_HELLO      # "Thadar <hello@thadar.com>" — human-reply mail
 ```
 
 Planned (later phases):
@@ -67,7 +71,6 @@ MINIO_ACCESS_KEY
 MINIO_SECRET_KEY
 MINIO_BUCKET_NAME
 REDIS_URL
-RESEND_API_KEY
 SENTRY_DSN
 ```
 
@@ -75,16 +78,21 @@ SENTRY_DSN
 
 ```
 app/              → Next.js App Router pages, layouts, API routes
-  api/            → All route handlers (see API section above)
+  api/            → All route handlers (see API section below)
+  admin/          → Admin control panel UI (admin.thadar.com)
   login/          → Login + register UI
-  components/     → Reusable UI components (inside app/ for now)
+  reset-password/ → Password reset UI
+  grades/         → Student grades view
+  _components/    → Reusable UI components (underscore = non-route)
 server/           → Server-only logic (never imported by client components)
   db.ts           → PrismaClient singleton with pg driver adapter
   auth.ts         → Auth.js v5 config (Credentials, JWT, view-aware session)
   api.ts          → Shared response envelope + requireUser/readJson helpers
   access.ts       → Per-request authorization against ClassMembership
+  classes.ts      → Class-scoped query helpers
   events.ts       → Domain events: notification + email + audit in one call
   email.ts        → Resend wrapper (From/Reply-To rules; no-op without a key)
+  admin/          → Admin-only server logic (overview, users, queue, etc.)
 lib/              → Framework-agnostic utilities (e.g. inviteCode.ts)
 prisma/
   schema.prisma   → DB schema (single source of truth)
@@ -173,6 +181,17 @@ owning teacher of that class, "student" an active member.
 **Teacher dashboard**
 
 - `GET /api/teacher/overview` — all owned classes with assignments, students, pending — one round trip.
+
+**Admin panel** (`admin.thadar.com` → `/admin`; requires `SUPER_ADMIN` or `ADMIN` role)
+
+- `GET /api/admin/overview` — platform-wide stats (users, classes, revenue).
+- `GET /api/admin/users` · `GET /api/admin/users/[id]` — user directory + profile.
+- `PATCH /api/admin/users/[id]` · `DELETE /api/admin/users/[id]` — edit / remove user.
+- `GET /api/admin/classes` · `PATCH·DELETE /api/admin/classes/[id]` — class management.
+- `GET /api/admin/queue` — join-request queue across all classes.
+- `GET /api/admin/audit` — audit log.
+- `GET·PATCH /api/admin/settings` — platform settings.
+- `GET /api/admin/system` — server health, DB stats.
 
 **Messaging & notifications**
 
