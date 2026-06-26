@@ -32,6 +32,8 @@
   --avatar-grad-from: rgba(224, 185, 122, 0.35);
   --avatar-grad-to: rgba(224, 185, 122, 0.08);
   --mid-tone: #cfcab8;
+  /* Translucent bg for the sticky marketing header (matches --bg per theme). */
+  --header-bg: rgba(14, 14, 16, 0.82);
 }
 
 [data-theme="light"] {
@@ -65,6 +67,7 @@
   --avatar-grad-from: rgba(184, 137, 61, 0.3);
   --avatar-grad-to: rgba(184, 137, 61, 0.08);
   --mid-tone: #8a7d5a;
+  --header-bg: rgba(247, 245, 240, 0.82);
 }
 
 @theme inline {

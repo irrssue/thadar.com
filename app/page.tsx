@@ -64,7 +64,7 @@ export default function HomePage() {
           borderBottom: "1px solid var(--hairline)",
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
-          background: "rgba(14,14,16,0.82)",
+          background: "var(--header-bg)",
         }}
       >
         <nav
