@@ -370,7 +370,7 @@ function Field({ icon, type, placeholder, value, onChange, trailing }: FieldProp
           border: "none",
           outline: "none",
           color: "var(--ink)",
-          fontSize: 14,
+          fontSize: 16,
           fontFamily: "inherit",
         }}
       />

@@ -37,7 +37,7 @@ export function Field({ icon, type, placeholder, value, onChange, trailing }: Fi
           border: "none",
           outline: "none",
           color: "var(--ink)",
-          fontSize: 14,
+          fontSize: 16,
           fontFamily: "inherit",
         }}
       />
