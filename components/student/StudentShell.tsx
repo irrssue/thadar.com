@@ -5,7 +5,7 @@ import Link from "next/link";
 import Icon from "../Icon";
 import { useTheme } from "../ThemeProvider";
 import ViewSwitcher from "../ViewSwitcher";
-import "../../student.css";
+import "../../app/student.css";
 
 type NavId = "home" | "classes" | "assign" | "grades" | "inbox" | "profile";
 
