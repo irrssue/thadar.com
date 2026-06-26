@@ -1,13 +1,9 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
+import { ok, fail, readJson } from "@/server/api";
 
 export const runtime = "nodejs";
-
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
 
 const createSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -17,10 +13,7 @@ const createSchema = z.object({
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return fail("Unauthorized", 401);
   }
 
   const classes = await prisma.class.findMany({
@@ -41,37 +34,23 @@ export async function GET() {
     },
   });
 
-  return NextResponse.json<ApiResponse<typeof classes>>(
-    { success: true, data: classes },
-    { status: 200 },
-  );
+  return ok(classes);
 }
 
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return fail("Unauthorized", 401);
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+  const body = await readJson(req);
+  if (body === undefined) {
+    return fail("Invalid JSON body", 400);
   }
 
   const parsed = createSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid class data" },
-      { status: 400 },
-    );
+    return fail("Invalid class data", 400);
   }
 
   const created = await prisma.$transaction(async (tx) => {
@@ -98,8 +77,5 @@ export async function POST(req: Request) {
     return klass;
   });
 
-  return NextResponse.json<ApiResponse<typeof created>>(
-    { success: true, data: created },
-    { status: 201 },
-  );
+  return ok(created, 201);
 }

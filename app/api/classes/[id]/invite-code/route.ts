@@ -1,15 +1,11 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { Prisma } from "@prisma/client";
 import { auth } from "@/server/auth";
 import { prisma } from "@/server/db";
 import { generateInviteCode } from "@/lib/inviteCode";
+import { ok, fail, readJson } from "@/server/api";
 
 export const runtime = "nodejs";
-
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
 
 const MAX_COLLISION_RETRIES = 8;
 
@@ -26,19 +22,13 @@ export async function POST(
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return fail("Unauthorized", 401);
   }
 
   const { id } = await ctx.params;
   const membership = await requireTeacherOwnership(session.user.id, id);
   if (!membership) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Not found" },
-      { status: 404 },
-    );
+    return fail("Not found", 404);
   }
 
   for (let attempt = 0; attempt < MAX_COLLISION_RETRIES; attempt++) {
@@ -49,10 +39,7 @@ export async function POST(
         data: { inviteCode, inviteCodeEnabled: true },
         select: { inviteCode: true, inviteCodeEnabled: true },
       });
-      return NextResponse.json<ApiResponse<typeof updated>>(
-        { success: true, data: updated },
-        { status: 200 },
-      );
+      return ok(updated);
     } catch (err) {
       // P2002 = unique constraint violation; retry with a fresh code.
       if (
@@ -65,10 +52,7 @@ export async function POST(
     }
   }
 
-  return NextResponse.json<ApiResponse<never>>(
-    { success: false, error: "Could not allocate invite code" },
-    { status: 500 },
-  );
+  return fail("Could not allocate invite code", 500);
 }
 
 const patchSchema = z.object({
@@ -82,37 +66,23 @@ export async function PATCH(
 ) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Unauthorized" },
-      { status: 401 },
-    );
+    return fail("Unauthorized", 401);
   }
 
   const { id } = await ctx.params;
   const membership = await requireTeacherOwnership(session.user.id, id);
   if (!membership) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Not found" },
-      { status: 404 },
-    );
+    return fail("Not found", 404);
   }
 
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+  const body = await readJson(req);
+  if (body === undefined) {
+    return fail("Invalid JSON body", 400);
   }
 
   const parsed = patchSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid payload" },
-      { status: 400 },
-    );
+    return fail("Invalid payload", 400);
   }
 
   const klass = await prisma.class.findUnique({
@@ -120,10 +90,7 @@ export async function PATCH(
     select: { inviteCode: true },
   });
   if (parsed.data.enabled && !klass?.inviteCode) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Generate a code before enabling joining" },
-      { status: 400 },
-    );
+    return fail("Generate a code before enabling joining", 400);
   }
 
   const updated = await prisma.class.update({
@@ -132,8 +99,5 @@ export async function PATCH(
     select: { inviteCode: true, inviteCodeEnabled: true },
   });
 
-  return NextResponse.json<ApiResponse<typeof updated>>(
-    { success: true, data: updated },
-    { status: 200 },
-  );
+  return ok(updated);
 }
