@@ -98,6 +98,8 @@ model User {
   notifications       Notification[]
   auditLogs           AuditLog[]
   passwordResetTokens PasswordResetToken[]
+  parentLinks         ParentLink[]       @relation("ParentLinks")
+  childLinks          ParentLink[]       @relation("ChildLinks")
 
   @@index([email])
   @@index([platformRole])
@@ -141,6 +143,27 @@ model ClassMembership {
   @@unique([userId, classId])
   @@index([classId, status])
   @@index([userId, status])
+}
+
+// Guardian link: connects a parent account to a child (student) account so the
+// parent can follow that child's classes and grades in the read-only parent
+// portal (parents.thadar.com). Orthogonal to class membership — a parent is
+// never enrolled in the child's classes. The invite/accept flow that creates
+// these links is deferred; for now they are seeded or created by an admin.
+model ParentLink {
+  id        String           @id @default(cuid())
+  parentId  String
+  childId   String
+  status    MembershipStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  parent User @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  child  User @relation("ChildLinks", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+  @@index([parentId, status])
+  @@index([childId])
 }
 
 model Lesson {

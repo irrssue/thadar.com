@@ -53,6 +53,20 @@ async function main() {
     },
   });
 
+  // Parent/guardian — signs in at parents.thadar.com for the read-only family
+  // view. Linked to children further down (once the cohort exists).
+  const parent = await prisma.user.upsert({
+    where: { email: "parent@thadar.com" },
+    update: {},
+    create: {
+      email: "parent@thadar.com",
+      name: "Daw Mya",
+      passwordHash,
+      defaultView: "STUDENT",
+      emailVerified: true,
+    },
+  });
+
   // Platform super admin — signs in at admin.thadar.com to run the control panel.
   await prisma.user.upsert({
     where: { email: "admin@thadar.com" },
@@ -579,11 +593,26 @@ async function main() {
     });
   }
 
+  // Guardian links — the parent follows two children: the main student (rich,
+  // multi-class graded history) and one cohort student (Hnin Wai, Mathematics),
+  // so the parent portal's child switcher has two real profiles to compare.
+  const parentChildren = [student.id, cohortUsers.get("hnin")].filter(
+    (id): id is string => typeof id === "string",
+  );
+  for (const childId of parentChildren) {
+    await prisma.parentLink.upsert({
+      where: { parentId_childId: { parentId: parent.id, childId } },
+      update: { status: "ACTIVE" },
+      create: { parentId: parent.id, childId, status: "ACTIVE" },
+    });
+  }
+
   console.log("Seed complete:");
   console.log(`  admin    admin@thadar.com / ${PASSWORD}  (super admin · admin.thadar.com)`);
   console.log(`  teacher  teacher@thadar.com / ${PASSWORD}`);
   console.log(`  teacher  teacher2@thadar.com / ${PASSWORD}`);
   console.log(`  student  student@thadar.com / ${PASSWORD}`);
+  console.log(`  parent   parent@thadar.com / ${PASSWORD}  (read-only · parents.thadar.com · ${parentChildren.length} children)`);
   console.log(`  class    "${klass.name}"  invite code: ${INVITE_CODE}`);
   console.log(`  classes  ${catalog.length + 1} total for the student (incl. 1 pending)`);
   console.log(`  lessons  ${lessons.length} in English (3 published, 1 draft) + extras`);
