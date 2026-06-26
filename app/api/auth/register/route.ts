@@ -1,7 +1,7 @@
-import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/server/db";
+import { ok, fail, readJson } from "@/server/api";
 
 export const runtime = "nodejs";
 
@@ -12,37 +12,22 @@ const registerSchema = z.object({
   role: z.enum(["teacher", "student"]).optional(),
 });
 
-type ApiResponse<T> =
-  | { success: true; data: T }
-  | { success: false; error: string };
-
 export async function POST(req: Request) {
-  let body: unknown;
-  try {
-    body = await req.json();
-  } catch {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid JSON body" },
-      { status: 400 },
-    );
+  const body = await readJson(req);
+  if (body === undefined) {
+    return fail("Invalid JSON body", 400);
   }
 
   const parsed = registerSchema.safeParse(body);
   if (!parsed.success) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Invalid input" },
-      { status: 400 },
-    );
+    return fail("Invalid input", 400);
   }
 
   const { name, email, password, role } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
-    return NextResponse.json<ApiResponse<never>>(
-      { success: false, error: "Email already registered" },
-      { status: 409 },
-    );
+    return fail("Email already registered", 409);
   }
 
   const passwordHash = await bcrypt.hash(password, 12);
@@ -53,8 +38,5 @@ export async function POST(req: Request) {
     select: { id: true, email: true, name: true, defaultView: true },
   });
 
-  return NextResponse.json<ApiResponse<typeof user>>(
-    { success: true, data: user },
-    { status: 201 },
-  );
+  return ok(user, 201);
 }
