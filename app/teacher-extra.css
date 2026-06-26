@@ -73,6 +73,13 @@
   .mini-act.approve { border-color: var(--accent-line); background: var(--accent-soft); color: var(--accent); }
   .mini-act.deny { border-color: rgba(224, 138, 138, 0.4); color: var(--danger); background: transparent; }
 
+  /* Desktop: sidebar is docked — page content lives to the right of it */
+  @media (min-width: 769px) {
+    .page {
+      padding-left: calc(var(--sidebar-w) + 48px);
+    }
+  }
+
   /* responsive */
   @media (max-width: 1080px) {
     .bento-teacher { grid-template-columns: 1fr; }

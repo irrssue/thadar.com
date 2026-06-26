@@ -181,9 +181,11 @@ export default function TeacherHome() {
                     </div>
                     <div className="tch">{c.activeCount} students</div>
                   </div>
-                  <MiniRing pct={c.mastery ?? 0} size={38} stroke={4} color={c.color}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: c.color }}>{c.letter ?? "—"}</div>
-                  </MiniRing>
+                  {c.letter != null && (
+                    <MiniRing pct={c.mastery ?? 0} size={38} stroke={4} color={c.color}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: c.color }}>{c.letter}</div>
+                    </MiniRing>
+                  )}
                 </div>
                 <div className="cfoot">
                   {c.trend.length > 1 ? (

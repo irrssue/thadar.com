@@ -134,6 +134,7 @@ export default function TeacherNav() {
         <div
           onClick={toggleOpen}
           aria-hidden
+          className="nav-backdrop"
           style={{
             position: "fixed",
             inset: 0,
@@ -270,6 +271,12 @@ export default function TeacherNav() {
         .nav-burger:hover { background: var(--surface-hover); }
         @media (max-width: 520px) {
           :root { --sidebar-w: 86vw; }
+        }
+        /* Desktop: sidebar is always docked — override the inline slide-in transform */
+        @media (min-width: 769px) {
+          .side-nav { transform: none !important; box-shadow: none !important; }
+          .nav-backdrop { display: none; }
+          .nav-burger { display: none; }
         }
       `}</style>
     </>
