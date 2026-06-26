@@ -36,6 +36,7 @@ function LoginPageInner() {
   const authStatus = useRedirectIfAuthenticated();
 
   const [showPw, setShowPw] = useState(false);
+  const [showReset, setShowReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -194,17 +195,44 @@ function LoginPageInner() {
             />
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
-              <a
-                href="#"
+              <button
+                type="button"
+                onClick={() => setShowReset((v) => !v)}
+                aria-expanded={showReset}
                 style={{
+                  background: "transparent",
+                  border: "none",
+                  padding: "4px 2px",
+                  cursor: "pointer",
                   color: "var(--ink-dim)",
                   fontSize: 13,
-                  textDecoration: "none",
+                  fontFamily: "inherit",
                 }}
               >
                 Forgot password?
-              </a>
+              </button>
             </div>
+
+            {showReset && (
+              <div
+                style={{
+                  marginTop: -2,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid var(--stroke)",
+                  background: "var(--surface-2)",
+                  color: "var(--ink-dim)",
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                Thadar accounts are managed by your teacher or class admin. Email{" "}
+                <a href="mailto:liam@irrssue.com" style={{ color: "var(--accent)", textDecoration: "none" }}>
+                  liam@irrssue.com
+                </a>{" "}
+                to reset your password.
+              </div>
+            )}
 
             {error && (
               <div
