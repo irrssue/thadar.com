@@ -83,7 +83,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
       {tab === "lessons" && <LessonsTab classId={id} />}
       {tab === "assignments" && <AssignmentsTab classId={id} />}
       {tab === "progress" && <ProgressTab classId={id} />}
-      {tab === "settings" && <SettingsTab klass={klass} onChange={load} />}
+      {tab === "settings" && <SettingsTab klass={klass} />}
 
       <CommandBar />
     </>

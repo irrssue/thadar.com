@@ -7,7 +7,7 @@ import { denyBtn } from "./ui";
 
 /* ---------------- Settings (invite code + edit/delete) ---------------- */
 
-export function SettingsTab({ klass, onChange }: { klass: ClassDetail; onChange: () => void }) {
+export function SettingsTab({ klass }: { klass: ClassDetail }) {
   const [working, setWorking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);

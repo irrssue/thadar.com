@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import Icon from "@/components/Icon";
-import { MiniRing, MiniSpark, RadialGauge, CountUp } from "@/components/student/charts";
+import { MiniRing, MiniSpark, RadialGauge } from "@/components/student/charts";
 import { initials } from "@/components/student/subject";
 import {
   type Overview,
