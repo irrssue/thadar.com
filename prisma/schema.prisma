@@ -97,6 +97,7 @@ model User {
   receivedMessages    Message[]          @relation("MessageRecipient")
   notifications       Notification[]
   auditLogs           AuditLog[]
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([platformRole])
@@ -274,4 +275,16 @@ model AuditLog {
 
   @@index([action])
   @@index([createdAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
