@@ -117,8 +117,9 @@ export async function resolveMembership(actorId: string, membershipId: string, a
 
 /**
  * Dispatch a moderation-queue action. itemId is the queue item's composite id
- * ("message:<id>", "teacher:<id>", "class:<id>", "membership:<id>"); `approve`
- * means the affirmative action (clear / verify / publish / admit), else reject.
+ * ("message:<id>", "account:<id>", "teacher:<id>", "class:<id>",
+ * "membership:<id>"); `approve` means the affirmative action
+ * (clear / admit / verify / publish), else reject.
  */
 export async function resolveQueueItem(actorId: string, itemId: string, approve: boolean): Promise<void> {
   const [kind, id] = itemId.split(":");
@@ -126,6 +127,11 @@ export async function resolveQueueItem(actorId: string, itemId: string, approve:
   switch (kind) {
     case "message":
       return resolveMessage(actorId, id, approve ? "clear" : "remove");
+    case "account":
+      // New sign-ups land in PENDING and can't log in until an admin approves.
+      // Approve → ACTIVE (unlocks the account); reject → SUSPENDED (reversible,
+      // keeps them locked out and off the queue).
+      return setUserStatus(actorId, id, approve ? "ACTIVE" : "SUSPENDED");
     case "teacher":
       return setTeacherStatus(actorId, id, approve ? "VERIFIED" : "UNVERIFIED");
     case "class":
