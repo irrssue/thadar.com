@@ -3,7 +3,7 @@
 // System — live platform scale + infrastructure from /api/admin/system.
 
 import PageHead from "../../components/PageHead";
-import { AreaTrend, Donut, BarRow } from "../../../components/student/charts";
+import { AreaTrend, Donut, BarRow } from "@/components/student/charts";
 import { type SystemData } from "../../data";
 import { useAdminData } from "../../useAdmin";
 

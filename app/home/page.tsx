@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import StudentShell from "../components/student/StudentShell";
-import StudentIcon from "../components/student/StudentIcon";
-import { subjectColor, initials } from "../components/student/subject";
-import { dueInfo, todayLine } from "../components/student/dates";
-import { MiniRing, MiniSpark, CountUp } from "../components/student/charts";
-import { gradePercent, letterFromPercent, gpaFromPercents } from "../components/student/grades";
+import StudentShell from "@/components/student/StudentShell";
+import StudentIcon from "@/components/student/StudentIcon";
+import { subjectColor, initials } from "@/components/student/subject";
+import { dueInfo, todayLine } from "@/components/student/dates";
+import { MiniRing, MiniSpark, CountUp } from "@/components/student/charts";
+import { gradePercent, letterFromPercent, gpaFromPercents } from "@/components/student/grades";
 
 type Submission = {
   id: string;

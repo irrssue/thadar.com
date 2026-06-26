@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import StudentShell from "../components/student/StudentShell";
-import { subjectColor } from "../components/student/subject";
+import StudentShell from "@/components/student/StudentShell";
+import { subjectColor } from "@/components/student/subject";
 import {
   RadialGauge,
   AreaTrend,
@@ -12,14 +12,14 @@ import {
   CountUp,
   type Segment,
   type Bar,
-} from "../components/student/charts";
+} from "@/components/student/charts";
 import {
   gradePercent,
   letterFromPercent,
   gpaFromPercents,
   distBucket,
   gradeTone,
-} from "../components/student/grades";
+} from "@/components/student/grades";
 
 type Submission = {
   id: string;

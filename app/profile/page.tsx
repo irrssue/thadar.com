@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import StudentShell from "../components/student/StudentShell";
-import { initials } from "../components/student/subject";
-import { RadialGauge, Heatmap, CountUp } from "../components/student/charts";
-import { gradePercent, gpaFromPercents } from "../components/student/grades";
+import StudentShell from "@/components/student/StudentShell";
+import { initials } from "@/components/student/subject";
+import { RadialGauge, Heatmap, CountUp } from "@/components/student/charts";
+import { gradePercent, gpaFromPercents } from "@/components/student/grades";
 
 type Me = {
   id: string;

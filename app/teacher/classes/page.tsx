@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Icon from "../../components/Icon";
-import { RadialGauge, MiniSpark, useEnter } from "../../components/student/charts";
-import { type Overview, classMetrics } from "../../components/teacher/metrics";
+import Icon from "@/components/Icon";
+import { RadialGauge, MiniSpark, useEnter } from "@/components/student/charts";
+import { type Overview, classMetrics } from "@/components/teacher/metrics";
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 

@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Icon from "../../components/Icon";
-import { RadialGauge, AreaTrend, BarRow, CountUp } from "../../components/student/charts";
+import Icon from "@/components/Icon";
+import { RadialGauge, AreaTrend, BarRow, CountUp } from "@/components/student/charts";
 import {
   type Overview,
   gradingQueue,
   turnaroundTrend,
   avgTurnaround,
-} from "../../components/teacher/metrics";
+} from "@/components/teacher/metrics";
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 

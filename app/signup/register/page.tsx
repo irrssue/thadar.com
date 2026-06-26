@@ -3,8 +3,8 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import Icon from "@/app/components/Icon";
-import { useRedirectIfAuthenticated } from "@/app/components/useRedirectIfAuthenticated";
+import Icon from "@/components/Icon";
+import { useRedirectIfAuthenticated } from "@/components/useRedirectIfAuthenticated";
 
 export default function RegisterPage() {
   return (

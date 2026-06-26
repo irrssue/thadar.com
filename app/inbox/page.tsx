@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import StudentShell from "../components/student/StudentShell";
-import StudentIcon from "../components/student/StudentIcon";
-import { subjectColor, initials } from "../components/student/subject";
+import StudentShell from "@/components/student/StudentShell";
+import StudentIcon from "@/components/student/StudentIcon";
+import { subjectColor, initials } from "@/components/student/subject";
 
 type Person = { id: string; name: string | null; email: string };
 type Mail = {

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import AdminIcon from "./AdminIcon";
 import NotificationPanel from "./NotificationPanel";
-import { useTheme } from "../../components/ThemeProvider";
+import { useTheme } from "@/components/ThemeProvider";
 import { initials } from "../data";
 import type { QueueItem } from "../types";
 

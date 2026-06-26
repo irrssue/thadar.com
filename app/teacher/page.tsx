@@ -3,16 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import Icon from "../components/Icon";
-import { MiniRing, MiniSpark, RadialGauge, CountUp } from "../components/student/charts";
-import { initials } from "../components/student/subject";
+import Icon from "@/components/Icon";
+import { MiniRing, MiniSpark, RadialGauge, CountUp } from "@/components/student/charts";
+import { initials } from "@/components/student/subject";
 import {
   type Overview,
   classMetrics,
   gradingQueue,
   roster,
   flagCounts,
-} from "../components/teacher/metrics";
+} from "@/components/teacher/metrics";
 
 type Mail = {
   id: string;

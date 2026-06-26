@@ -1,14 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Donut, VBars, MiniSpark, BarRow, CountUp } from "../../components/student/charts";
-import { initials } from "../../components/student/subject";
+import { Donut, VBars, MiniSpark, BarRow, CountUp } from "@/components/student/charts";
+import { initials } from "@/components/student/subject";
 import {
   type Overview,
   roster,
   flagCounts,
   masteryBands,
-} from "../../components/teacher/metrics";
+} from "@/components/teacher/metrics";
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 type FilterId = "all" | "support" | "stretch" | "late";

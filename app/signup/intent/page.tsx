@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Icon from "@/app/components/Icon";
-import { useRedirectIfAuthenticated } from "@/app/components/useRedirectIfAuthenticated";
+import Icon from "@/components/Icon";
+import { useRedirectIfAuthenticated } from "@/components/useRedirectIfAuthenticated";
 
 type Intent = "teacher" | "student";
 

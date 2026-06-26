@@ -6,7 +6,7 @@
 
 import Link from "next/link";
 import AdminIcon from "../components/AdminIcon";
-import { AreaTrend, Donut, VBars, BarRow, CountUp } from "../../components/student/charts";
+import { AreaTrend, Donut, VBars, BarRow, CountUp } from "@/components/student/charts";
 import { roleTint, type OverviewData } from "../data";
 import { useAdminData } from "../useAdmin";
 

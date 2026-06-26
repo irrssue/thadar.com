@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import StudentShell from "../components/student/StudentShell";
-import StudentIcon from "../components/student/StudentIcon";
-import { subjectColor } from "../components/student/subject";
-import { dueInfo } from "../components/student/dates";
-import { RadialGauge, MiniSpark } from "../components/student/charts";
-import { gradePercent, letterFromPercent } from "../components/student/grades";
+import StudentShell from "@/components/student/StudentShell";
+import StudentIcon from "@/components/student/StudentIcon";
+import { subjectColor } from "@/components/student/subject";
+import { dueInfo } from "@/components/student/dates";
+import { RadialGauge, MiniSpark } from "@/components/student/charts";
+import { gradePercent, letterFromPercent } from "@/components/student/grades";
 
 type Membership = {
   id: string;

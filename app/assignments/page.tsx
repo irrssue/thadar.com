@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import StudentShell from "../components/student/StudentShell";
-import { subjectColor } from "../components/student/subject";
-import { dueInfo } from "../components/student/dates";
-import { Donut, VBars, CountUp, type Bar } from "../components/student/charts";
+import StudentShell from "@/components/student/StudentShell";
+import { subjectColor } from "@/components/student/subject";
+import { dueInfo } from "@/components/student/dates";
+import { Donut, VBars, CountUp, type Bar } from "@/components/student/charts";
 
 type Submission = {
   id: string;

@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState, use } from "react";
 import Link from "next/link";
-import FloatingNav from "../../components/FloatingNav";
-import CommandBar from "../../components/CommandBar";
-import Icon from "../../components/Icon";
+import FloatingNav from "@/components/FloatingNav";
+import CommandBar from "@/components/CommandBar";
+import Icon from "@/components/Icon";
 
 type ApiResponse<T> = { success: true; data: T } | { success: false; error: string };
 

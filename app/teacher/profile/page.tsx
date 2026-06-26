@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
-import { RadialGauge, Heatmap, CountUp } from "../../components/student/charts";
-import { initials } from "../../components/student/subject";
+import { RadialGauge, Heatmap, CountUp } from "@/components/student/charts";
+import { initials } from "@/components/student/subject";
 import {
   type Overview,
   roster,
@@ -11,7 +11,7 @@ import {
   submissionRate,
   avgTurnaround,
   submissionHeatmap,
-} from "../../components/teacher/metrics";
+} from "@/components/teacher/metrics";
 
 type Me = {
   id: string;
