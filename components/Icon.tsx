@@ -179,6 +179,26 @@ export default function Icon({ name, size = 20 }: IconProps) {
           <path {...stroke} d="M5 12h14 M13 6l6 6-6 6" />
         </svg>
       );
+    case "arrow-left":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24">
+          <path {...stroke} d="M19 12H5 M11 18l-6-6 6-6" />
+        </svg>
+      );
+    case "check-circle":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24">
+          <circle {...stroke} cx="12" cy="12" r="9" />
+          <path {...stroke} d="M8 12l3 3 5-5" />
+        </svg>
+      );
+    case "alert-circle":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24">
+          <circle {...stroke} cx="12" cy="12" r="9" />
+          <path {...stroke} d="M12 8v5 M12 16.5v.5" />
+        </svg>
+      );
     case "students":
       return (
         <svg width={s} height={s} viewBox="0 0 24 24">
