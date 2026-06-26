@@ -20,6 +20,8 @@ const FROM_NOREPLY =
   process.env.EMAIL_FROM_NOREPLY ?? "Thadar <noreply@thadar.com>";
 const FROM_HELLO =
   process.env.EMAIL_FROM_HELLO ?? "Thadar <hello@thadar.com>";
+const FROM_SUPPORT =
+  process.env.EMAIL_FROM_SUPPORT ?? "Thadar Support <support@thadar.com>";
 
 export type SendEmailInput = {
   to: string;
@@ -29,11 +31,16 @@ export type SendEmailInput = {
   /** Reply-To — only the other party's email within a shared class. */
   replyTo?: string;
   /** Which Thadar identity sends this. System mail uses noreply. */
-  from?: "noreply" | "hello";
+  from?: "noreply" | "hello" | "support";
 };
 
 export async function sendEmail(input: SendEmailInput): Promise<boolean> {
-  const from = input.from === "hello" ? FROM_HELLO : FROM_NOREPLY;
+  const from =
+    input.from === "hello"
+      ? FROM_HELLO
+      : input.from === "support"
+        ? FROM_SUPPORT
+        : FROM_NOREPLY;
 
   if (!resend) {
     // Dev / unconfigured: don't throw, just record intent.
