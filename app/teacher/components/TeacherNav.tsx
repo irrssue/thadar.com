@@ -272,12 +272,6 @@ export default function TeacherNav() {
         @media (max-width: 520px) {
           :root { --sidebar-w: 86vw; }
         }
-        /* Desktop: sidebar is always docked — override the inline slide-in transform */
-        @media (min-width: 769px) {
-          .side-nav { transform: none !important; box-shadow: none !important; }
-          .nav-backdrop { display: none; }
-          .nav-burger { display: none; }
-        }
       `}</style>
     </>
   );
