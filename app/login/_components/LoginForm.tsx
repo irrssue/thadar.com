@@ -20,12 +20,19 @@ function safeCallbackPath(raw: string | null): string {
 }
 
 export function LoginForm({ callbackUrl }: { callbackUrl: string | null }) {
+  // Login form state
   const [showPw, setShowPw] = useState(false);
-  const [showReset, setShowReset] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // Forgot-password panel state
+  const [showReset, setShowReset] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,6 +79,37 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string | null }) {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleResetSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (resetSubmitting) return;
+    setResetError(null);
+    setResetSubmitting(true);
+    try {
+      const res = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: resetEmail }),
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.success) {
+        setResetError(json?.error ?? "Something went wrong. Please try again.");
+        return;
+      }
+      setResetSent(true);
+    } catch {
+      setResetError("Something went wrong. Please try again.");
+    } finally {
+      setResetSubmitting(false);
+    }
+  }
+
+  function openReset() {
+    setResetEmail(email); // pre-fill with whatever they typed in the email field
+    setResetError(null);
+    setResetSent(false);
+    setShowReset(true);
   }
 
   return (
@@ -121,143 +159,236 @@ export function LoginForm({ callbackUrl }: { callbackUrl: string | null }) {
             padding: "28px 28px 24px",
           }}
         >
-          <h1
-            style={{
-              fontSize: 26,
-              fontWeight: 600,
-              margin: "0 0 6px",
-              letterSpacing: "-0.3px",
-            }}
-          >
-            Welcome back
-          </h1>
-          <p
-            style={{
-              color: "var(--ink-dim)",
-              fontSize: 14,
-              margin: "0 0 22px",
-            }}
-          >
-            Sign in to continue your learning.
-          </p>
-
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <Field
-              icon="mail"
-              type="email"
-              placeholder="you@example.com"
-              value={email}
-              onChange={setEmail}
-            />
-
-            <Field
-              icon="lock"
-              type={showPw ? "text" : "password"}
-              placeholder="Password"
-              value={password}
-              onChange={setPassword}
-              trailing={
+          {showReset ? (
+            /* ── Forgot-password panel ── */
+            <>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                 <button
                   type="button"
-                  onClick={() => setShowPw((v) => !v)}
-                  aria-label={showPw ? "Hide password" : "Show password"}
+                  onClick={() => setShowReset(false)}
+                  aria-label="Back to sign in"
                   style={{
                     background: "transparent",
                     border: "none",
                     cursor: "pointer",
                     color: "var(--ink-dim)",
                     display: "inline-flex",
-                    padding: 2,
+                    padding: 0,
                   }}
                 >
-                  <Icon name={showPw ? "eye-off" : "eye"} size={16} />
+                  <Icon name="arrow-left" size={18} />
                 </button>
-              }
-            />
-
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
-              <button
-                type="button"
-                onClick={() => setShowReset((v) => !v)}
-                aria-expanded={showReset}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "4px 2px",
-                  cursor: "pointer",
-                  color: "var(--ink-dim)",
-                  fontSize: 13,
-                  fontFamily: "inherit",
-                }}
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {showReset && (
-              <div
-                style={{
-                  marginTop: -2,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid var(--stroke)",
-                  background: "var(--surface-2)",
-                  color: "var(--ink-dim)",
-                  fontSize: 13,
-                  lineHeight: 1.5,
-                }}
-              >
-                Thadar accounts are managed by your teacher or class admin. Email{" "}
-                <a href="mailto:liam@irrssue.com" style={{ color: "var(--accent)", textDecoration: "none" }}>
-                  liam@irrssue.com
-                </a>{" "}
-                to reset your password.
+                <h1
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 600,
+                    margin: 0,
+                    letterSpacing: "-0.3px",
+                  }}
+                >
+                  Forgot password?
+                </h1>
               </div>
-            )}
 
-            {error && (
-              <div
-                role="alert"
+              {resetSent ? (
+                <div
+                  style={{
+                    marginTop: 14,
+                    padding: "14px 16px",
+                    borderRadius: 10,
+                    border: "1px solid var(--stroke)",
+                    background: "var(--surface-2)",
+                    fontSize: 14,
+                    lineHeight: 1.6,
+                    color: "var(--ink-dim)",
+                  }}
+                >
+                  If <strong style={{ color: "var(--ink)" }}>{resetEmail}</strong> is registered,
+                  a reset link has been sent from{" "}
+                  <strong style={{ color: "var(--ink)" }}>support@thadar.com</strong>. Check your
+                  inbox — the link expires in 1 hour.
+                </div>
+              ) : (
+                <form
+                  onSubmit={handleResetSubmit}
+                  style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 14 }}
+                >
+                  <p style={{ color: "var(--ink-dim)", fontSize: 14, margin: 0 }}>
+                    Enter your email and we&apos;ll send you a link to set a new password.
+                  </p>
+
+                  <Field
+                    icon="mail"
+                    type="email"
+                    placeholder="you@example.com"
+                    value={resetEmail}
+                    onChange={setResetEmail}
+                  />
+
+                  {resetError && (
+                    <div
+                      role="alert"
+                      style={{
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid var(--danger-ring, #b54a3d)",
+                        background: "var(--danger-bg, rgba(181, 74, 61, 0.08))",
+                        color: "var(--danger, #b54a3d)",
+                        fontSize: 13,
+                      }}
+                    >
+                      {resetError}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={resetSubmitting}
+                    style={{
+                      marginTop: 6,
+                      width: "100%",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      padding: "12px 16px",
+                      borderRadius: 10,
+                      border: "1px solid var(--accent-ring)",
+                      background: "var(--accent)",
+                      color: "#1a1814",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      cursor: resetSubmitting ? "not-allowed" : "pointer",
+                      opacity: resetSubmitting ? 0.7 : 1,
+                      letterSpacing: "0.1px",
+                    }}
+                  >
+                    {resetSubmitting ? "Sending…" : "Send reset link"}
+                    <Icon name="arrow-right" size={16} />
+                  </button>
+                </form>
+              )}
+            </>
+          ) : (
+            /* ── Sign-in form ── */
+            <>
+              <h1
                 style={{
-                  marginTop: 4,
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid var(--danger-ring, #b54a3d)",
-                  background: "var(--danger-bg, rgba(181, 74, 61, 0.08))",
-                  color: "var(--danger, #b54a3d)",
-                  fontSize: 13,
+                  fontSize: 26,
+                  fontWeight: 600,
+                  margin: "0 0 6px",
+                  letterSpacing: "-0.3px",
                 }}
               >
-                {error}
-              </div>
-            )}
+                Welcome back
+              </h1>
+              <p
+                style={{
+                  color: "var(--ink-dim)",
+                  fontSize: 14,
+                  margin: "0 0 22px",
+                }}
+              >
+                Sign in to continue your learning.
+              </p>
 
-            <button
-              type="submit"
-              disabled={submitting}
-              style={{
-                marginTop: 6,
-                width: "100%",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "12px 16px",
-                borderRadius: 10,
-                border: "1px solid var(--accent-ring)",
-                background: "var(--accent)",
-                color: "#1a1814",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: submitting ? "not-allowed" : "pointer",
-                opacity: submitting ? 0.7 : 1,
-                letterSpacing: "0.1px",
-              }}
-            >
-              {submitting ? "Signing in…" : "Sign in"}
-              <Icon name="arrow-right" size={16} />
-            </button>
-          </form>
+              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <Field
+                  icon="mail"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={setEmail}
+                />
+
+                <Field
+                  icon="lock"
+                  type={showPw ? "text" : "password"}
+                  placeholder="Password"
+                  value={password}
+                  onChange={setPassword}
+                  trailing={
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      aria-label={showPw ? "Hide password" : "Show password"}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        cursor: "pointer",
+                        color: "var(--ink-dim)",
+                        display: "inline-flex",
+                        padding: 2,
+                      }}
+                    >
+                      <Icon name={showPw ? "eye-off" : "eye"} size={16} />
+                    </button>
+                  }
+                />
+
+                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: -4 }}>
+                  <button
+                    type="button"
+                    onClick={openReset}
+                    style={{
+                      background: "transparent",
+                      border: "none",
+                      padding: "4px 2px",
+                      cursor: "pointer",
+                      color: "var(--ink-dim)",
+                      fontSize: 13,
+                      fontFamily: "inherit",
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+
+                {error && (
+                  <div
+                    role="alert"
+                    style={{
+                      marginTop: 4,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid var(--danger-ring, #b54a3d)",
+                      background: "var(--danger-bg, rgba(181, 74, 61, 0.08))",
+                      color: "var(--danger, #b54a3d)",
+                      fontSize: 13,
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  style={{
+                    marginTop: 6,
+                    width: "100%",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    padding: "12px 16px",
+                    borderRadius: 10,
+                    border: "1px solid var(--accent-ring)",
+                    background: "var(--accent)",
+                    color: "#1a1814",
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    opacity: submitting ? 0.7 : 1,
+                    letterSpacing: "0.1px",
+                  }}
+                >
+                  {submitting ? "Signing in…" : "Sign in"}
+                  <Icon name="arrow-right" size={16} />
+                </button>
+              </form>
+            </>
+          )}
         </div>
 
         <p
