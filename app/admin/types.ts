@@ -1,5 +1,5 @@
 // types.ts — wire types + presentation helpers shared by the admin control
-// panel's server data layer (server/admin.ts) and its client pages.
+// panel's server data layer (server/admin/*) and its client pages.
 //
 // The server returns objects shaped exactly like these types (colours included
 // as ready-to-render CSS custom-property strings), so the pages render real
