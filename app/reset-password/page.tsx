@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import Icon from "../components/Icon";
+import Icon from "@/components/Icon";
 
 export default function ResetPasswordPage() {
   return (
