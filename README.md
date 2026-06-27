@@ -21,7 +21,9 @@ Self-hosted on home server cluster.
 
 - App, DB, storage each in Docker containers
 - Postgres bound to `127.0.0.1:5433` + Tailscale `100.100.200.29:5433` on homelab
-- Public access via **Cloudflare Tunnel** → thadar.com → `localhost:3001` (PM2-managed)
+- App runs as the `thadar_app` Docker container with host networking
+  (`docker/homeserver/docker-compose.yml`)
+- Public access via **Cloudflare Tunnel** → thadar.com → the container on `localhost`
 - Deploys via GitHub Actions over Cloudflare-tunneled SSH
 - Backups to Cloudflare R2 (planned)
 
@@ -208,10 +210,18 @@ approvals, assignment publishes, submissions, and grading.
 
 Push to `main` → GitHub Actions:
 
-1. Installs `cloudflared`
-2. Loads SSH key + known_hosts from secrets
-3. SSH to homelab via Cloudflare Tunnel
-4. `git pull`, `npm ci`, `prisma generate`, `prisma migrate deploy`, `npm run build`, `pm2 restart thadar`
+1. **Build & push** the Docker image to GHCR (`ghcr.io/irrssue/thadar`,
+   tagged `latest` + `sha-<commit>`).
+2. **Deploy** — install `cloudflared`, load the SSH key + known_hosts from
+   secrets, then SSH to homelab via Cloudflare Tunnel and:
+   - `git pull --ff-only origin main`
+   - `prisma migrate deploy` **before** the new container starts — if it fails,
+     the deploy aborts and the running container keeps serving, so a bad
+     migration can never take the site down
+   - `docker pull` the new image and `docker compose up -d` the `thadar`
+     service, then prune old images
+
+Pure-docs commits (`**.md`) are skipped via `paths-ignore` and don't deploy.
 
 `.env` lives on homelab at `~/thadar.com/.env` (chmod 600), never committed.
 
