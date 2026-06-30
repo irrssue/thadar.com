@@ -16,7 +16,7 @@ export default function ClassDetailPage({ params }: { params: Promise<{ id: stri
   const { id } = use(params);
   const [klass, setKlass] = useState<ClassDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<Tab>("roster");
+  const [tab, setTab] = useState<Tab>("lessons");
 
   const load = useCallback(async () => {
     setError(null);
