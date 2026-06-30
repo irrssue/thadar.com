@@ -58,6 +58,7 @@ export default function StudentShell({
 }) {
   const { theme, toggle } = useTheme();
   const [badges, setBadges] = useState<Badges>({ assign: 0, inbox: 0 });
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -93,8 +94,48 @@ export default function StudentShell({
         {children}
       </div>
 
+      {/* Mobile hamburger button */}
+      <button
+        className="nav-burger"
+        onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation"
+        style={{
+          position: "fixed",
+          top: 12,
+          left: 12,
+          zIndex: 60,
+          width: 40,
+          height: 40,
+          display: "none",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "var(--nav-bg)",
+          border: "1px solid var(--nav-border)",
+          borderRadius: 10,
+          cursor: "pointer",
+          color: "var(--ink)",
+        }}
+      >
+        <Icon name="menu" />
+      </button>
+
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          style={{
+            display: "none",
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            zIndex: 54,
+          }}
+          className="mobile-backdrop"
+        />
+      )}
+
       <aside
-        className="side-nav"
+        className={`side-nav${mobileOpen ? " mobile-open" : ""}`}
         style={{
           position: "fixed",
           top: 0,
@@ -112,6 +153,29 @@ export default function StudentShell({
         }}
         aria-label="Student navigation"
       >
+        {/* Close button — mobile only */}
+        <button
+          className="nav-close"
+          onClick={() => setMobileOpen(false)}
+          aria-label="Close navigation"
+          style={{
+            display: "none",
+            alignSelf: "flex-end",
+            width: 32,
+            height: 32,
+            alignItems: "center",
+            justifyContent: "center",
+            background: "transparent",
+            border: "none",
+            borderRadius: 8,
+            cursor: "pointer",
+            color: "var(--ink-dim)",
+            marginBottom: 4,
+          }}
+        >
+          <Icon name="close" />
+        </button>
+
         <Link
           href="/home"
           className="side-brand"
@@ -214,8 +278,13 @@ export default function StudentShell({
         :root { --sidebar-w: 240px; }
         .nav-btn:hover { background: var(--surface-hover); color: var(--ink); }
         .nav-burger:hover { background: var(--surface-hover); }
-        @media (max-width: 520px) {
+        @media (max-width: 760px) {
           :root { --sidebar-w: 86vw; }
+          .nav-burger { display: flex !important; }
+          .side-nav { transform: translateX(-100%); transition: transform 200ms ease; }
+          .side-nav.mobile-open { transform: translateX(0); }
+          .mobile-backdrop { display: block !important; }
+          .nav-close { display: flex !important; }
         }
       `}</style>
     </div>

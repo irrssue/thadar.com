@@ -250,6 +250,12 @@ export default function Icon({ name, size = 20 }: IconProps) {
           <path {...stroke} d="M4 6h16 M4 12h16 M4 18h16" />
         </svg>
       );
+    case "close":
+      return (
+        <svg width={s} height={s} viewBox="0 0 24 24">
+          <path {...stroke} d="M18 6L6 18 M6 6l12 12" />
+        </svg>
+      );
     default:
       return null;
   }
