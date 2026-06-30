@@ -85,7 +85,16 @@
   *::-webkit-scrollbar-thumb:hover { background: var(--s-scroll-hover); background-clip: content-box; }
 
   /* ---------------- page chrome ---------------- */
-  .page { max-width: 1280px; margin: 0 auto; padding: 32px 48px 96px; margin-left: var(--sidebar-w); }
+  .page {
+    margin-left: var(--sidebar-w);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 48px 96px;
+    box-sizing: border-box;
+  }
+  .page > * { width: 100%; max-width: 960px; }
 
   .av {
     width: 42px; height: 42px; border-radius: 999px;
@@ -396,7 +405,7 @@
   }
   @media (max-width: 760px) {
     /* Top padding clears the fixed hamburger button (top:18, h:42). */
-    .page { padding: 64px 18px 64px; }
+    .page { padding: 64px 18px 64px; margin-left: 0; }
     .greet { font-size: 33px; }
     .bento-min { grid-template-columns: 1fr; grid-template-areas: "due" "class" "grade"; }
     .cgrid { grid-template-columns: 1fr; }
