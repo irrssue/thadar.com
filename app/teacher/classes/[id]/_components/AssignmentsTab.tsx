@@ -42,6 +42,7 @@ export function AssignmentsTab({ classId }: { classId: string }) {
             <div style={{ fontSize: 17 }}>{a.title}</div>
             <div style={{ fontSize: 12, color: "var(--ink-dim)", fontFamily: "var(--font-mono)" }}>
               {a.status.toLowerCase()} · {a._count.submissions} submissions
+              {a.lateCount > 0 ? <span style={{ color: "var(--danger)" }}> · {a.lateCount} late</span> : ""}
               {a.dueAt ? ` · due ${new Date(a.dueAt).toLocaleDateString()}` : ""}
             </div>
           </div>
@@ -142,7 +143,7 @@ function SubmissionsModal({ assignment, onClose, onGraded }: { assignment: TAssi
         {!subs && <Muted>Loading…</Muted>}
         {subs && subs.length === 0 && <Muted>No submissions yet.</Muted>}
         {(subs ?? []).map((s) => (
-          <GradeCard key={s.id} sub={s} onGrade={grade} />
+          <GradeCard key={s.id} sub={s} dueAt={assignment.dueAt} onGrade={grade} />
         ))}
         <div style={{ display: "flex", justifyContent: "flex-end" }}>
           <button onClick={onClose} style={ghostBtn}>Close</button>
@@ -152,17 +153,22 @@ function SubmissionsModal({ assignment, onClose, onGraded }: { assignment: TAssi
   );
 }
 
-function GradeCard({ sub, onGrade }: { sub: SubRow; onGrade: (s: SubRow, g: string, f: string) => Promise<void> }) {
+function GradeCard({ sub, dueAt, onGrade }: { sub: SubRow; dueAt: string | null; onGrade: (s: SubRow, g: string, f: string) => Promise<void> }) {
   const [grade, setGrade] = useState(sub.grade ?? "");
   const [feedback, setFeedback] = useState(sub.feedback ?? "");
   const [saving, setSaving] = useState(false);
+
+  const isLate = dueAt != null && new Date(sub.submittedAt) > new Date(dueAt);
 
   return (
     <div style={{ border: "1.2px dashed var(--ink-faint)", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
         <div style={{ fontSize: 15, fontWeight: 600 }}>{sub.student.name ?? sub.student.email}</div>
-        <div style={{ fontFamily: "var(--font-mono)", fontSize: 11, color: sub.status === "GRADED" ? "var(--accent-2, var(--accent))" : "var(--ink-dim)" }}>
-          {sub.status.toLowerCase()}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: "var(--font-mono)", fontSize: 11 }}>
+          {isLate && <span style={{ color: "var(--danger)" }}>late</span>}
+          <span style={{ color: sub.status === "GRADED" ? "var(--accent-2, var(--accent))" : "var(--ink-dim)" }}>
+            {sub.status.toLowerCase()}
+          </span>
         </div>
       </div>
       <div style={{ fontSize: 14, color: "var(--ink-dim)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>{sub.content}</div>

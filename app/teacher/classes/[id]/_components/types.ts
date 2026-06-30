@@ -14,7 +14,7 @@ export type Member = { id: string; status: string; joinedAt: string; user: { id:
 
 export type Lesson = { id: string; title: string; content: string; videoUrl: string; order: number; published: boolean; _count: { views: number } };
 
-export type TAssignment = { id: string; title: string; instructions: string; dueAt: string | null; status: string; _count: { submissions: number } };
+export type TAssignment = { id: string; title: string; instructions: string; dueAt: string | null; status: string; _count: { submissions: number }; lateCount: number };
 
 export type SubRow = { id: string; content: string; status: string; grade: string | null; feedback: string | null; submittedAt: string; student: { id: string; name: string | null; email: string } };
 

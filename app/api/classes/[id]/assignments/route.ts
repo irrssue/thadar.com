@@ -51,9 +51,19 @@ export async function GET(
       status: true,
       createdAt: true,
       _count: { select: { submissions: true } },
+      // submission timestamps only — used to derive how many came in after dueAt
+      submissions: { select: { submittedAt: true } },
     },
   });
-  return ok(assignments);
+
+  // A submission is "late" when it landed after the assignment's due date.
+  const withLate = assignments.map(({ submissions, ...a }) => ({
+    ...a,
+    lateCount: a.dueAt
+      ? submissions.filter((s) => s.submittedAt > a.dueAt!).length
+      : 0,
+  }));
+  return ok(withLate);
 }
 
 const createSchema = z.object({
