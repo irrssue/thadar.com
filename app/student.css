@@ -85,7 +85,7 @@
   *::-webkit-scrollbar-thumb:hover { background: var(--s-scroll-hover); background-clip: content-box; }
 
   /* ---------------- page chrome ---------------- */
-  .page { max-width: 1280px; margin: 0 auto; padding: 32px 48px 96px; }
+  .page { max-width: 1280px; margin: 0 auto; padding: 32px 48px 96px; margin-left: var(--sidebar-w); }
 
   .av {
     width: 42px; height: 42px; border-radius: 999px;

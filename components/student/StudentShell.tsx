@@ -21,8 +21,6 @@ const NAV: { id: NavId; label: string; href: string; icon: string }[] = [
   { id: "profile", label: "Profile", href: "/profile", icon: "profile" },
 ];
 
-const NAV_OPEN_KEY = "thadar-nav-open";
-
 type Badges = { assign: number; inbox: number };
 
 const rowStyle = (isActive: boolean) =>
@@ -59,19 +57,7 @@ export default function StudentShell({
   children: React.ReactNode;
 }) {
   const { theme, toggle } = useTheme();
-  const [open, setOpen] = useState(true);
   const [badges, setBadges] = useState<Badges>({ assign: 0, inbox: 0 });
-
-  useEffect(() => {
-    const saved = localStorage.getItem(NAV_OPEN_KEY);
-    if (saved !== null) {
-      setOpen(saved === "1");
-      return;
-    }
-    // No saved preference: keep the menu out of the way on phones, where the
-    // nav is a full-screen overlay rather than a docked sidebar.
-    if (window.innerWidth <= 768) setOpen(false);
-  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -98,13 +84,6 @@ export default function StudentShell({
     };
   }, []);
 
-  const toggleOpen = () =>
-    setOpen((v) => {
-      const next = !v;
-      localStorage.setItem(NAV_OPEN_KEY, next ? "1" : "0");
-      return next;
-    });
-
   const badgeFor = (id: NavId) =>
     id === "assign" ? badges.assign : id === "inbox" ? badges.inbox : 0;
 
@@ -113,45 +92,6 @@ export default function StudentShell({
       <div className="page" data-screen-label={active}>
         {children}
       </div>
-
-      <button
-        onClick={toggleOpen}
-        aria-label={open ? "Hide menu" : "Show menu"}
-        aria-expanded={open}
-        className="nav-burger"
-        style={{
-          position: "fixed",
-          top: 18,
-          left: 14,
-          width: 42,
-          height: 42,
-          borderRadius: 10,
-          border: "none",
-          background: "transparent",
-          color: "var(--ink)",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          cursor: "pointer",
-          zIndex: 60,
-          transition: "background 120ms",
-        }}
-      >
-        <Icon name="menu" size={28} />
-      </button>
-
-      {open && (
-        <div
-          onClick={toggleOpen}
-          aria-hidden
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.32)",
-            zIndex: 52,
-          }}
-        />
-      )}
 
       <aside
         className="side-nav"
@@ -169,12 +109,8 @@ export default function StudentShell({
           gap: 4,
           zIndex: 55,
           overflowY: "auto",
-          transform: open ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 180ms ease",
-          boxShadow: open ? "var(--nav-shadow)" : "none",
         }}
         aria-label="Student navigation"
-        aria-hidden={!open}
       >
         <Link
           href="/home"
@@ -183,7 +119,7 @@ export default function StudentShell({
             display: "flex",
             alignItems: "center",
             gap: 10,
-            padding: "0 12px 0 52px",
+            padding: "0 12px",
             height: 42,
             marginBottom: 8,
             textDecoration: "none",
